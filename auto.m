@@ -2,7 +2,7 @@
 import "GlobalVars.m" : __SANITY_CHECK;
 
 
-intrinsic ProduceFilter2 (G::GrpPC: S := [], CharSpacesFunc:=false) -> [], [], []
+intrinsic ProduceFilter (G::GrpPC: S := [], CharSpacesFunc:=false) -> [], [], []
 {produce filter}
    F:= pCentralFilter(G);
    Q:=Refine (F);
