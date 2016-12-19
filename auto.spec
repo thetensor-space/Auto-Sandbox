@@ -7,5 +7,6 @@
   breadth.m
   exponentiate.m
   Util.m
+  char-spaces.m
 }
 
