@@ -1,0 +1,54 @@
+load "../start";
+load "programs.m";
+load "present.m";
+
+CharSubgroupsToSpaces := function (G, Chars)
+   d := FrattiniQuotientRank (G);
+   p := FactoredOrder (G)[1][1];
+
+   V := VectorSpace (GF (p), d);
+   F := FrattiniSubgroup (G);
+   Q, phi := quo < G | F >;
+   spaces := {@ @};
+   spaces := [* *];
+   for i in [1..#Chars] do
+      S := Chars[i] @ phi;
+ // if IsTrivial (S) eq false then
+      // Include (~spaces,
+      Append (~spaces,
+               <sub <V | [Eltseq (Q ! S.i): i in [1..NPCgens (S)]]>, 1>);
+// end if;
+   end for;
+   return {@s: s in spaces @};
+end function;
+
+
+p := 11;
+P, Q := BrahanaList (p);
+
+/* 
+for i in [1..60] do 
+"\n\n i = ", i;
+I, J, K:=ProduceFilter (P[i]);
+[NPCgens (x): x in I];
+
+S := CharSubgroupsToSpaces (P[i], I);
+S := [x[1] : x in S | x[2] eq 1];
+S := StabiliserOfSpaces (S);
+"Reduce GL to ", LMGOrder (S);
+
+B := pCentralBimap (P[i], 1, 1);
+U := DensorOfBimap (B);
+"Densor invariant ", i, Dimension (U);
+S := SystemOfForms (B);
+MA := MatrixAlgebra (GF (p), 5);
+S := [MA!x: x in S];
+N:=NormStar (S); 
+
+ D:=DerivationAlgebra (B);
+
+// time A:=AutomorphismGroupPGroup (P[i]:CharacteristicSubgroups:=I);
+
+end for;
+
+*/
