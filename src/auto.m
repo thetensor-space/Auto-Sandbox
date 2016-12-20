@@ -28,7 +28,7 @@ end intrinsic;
 
 __ReduceActionOnVW := function (G)
 	vprint Autotopism, 1 : 
-		"Searching for characteristic subgroups by Maglione-Wilson filter algorithm.";
+		"\tSearching for characteristic subgroups by Maglione-Wilson filters.";
    A := ProduceFilter(G);
 
 
@@ -51,7 +51,7 @@ __ReduceActionOnVW := function (G)
 assert GV2 subset GV;
 
 	vprint Autotopism, 1 : 
-		"Searching for characteristic subgroups by Eick--Leedham-Green--O'Brien algorithm.";
+		"\tSearching for characteristic subgroups by Eick--Leedham-Green--O'Brien.";
 
 
 
@@ -82,7 +82,11 @@ intrinsic AutomorphismGroupByInvariants(
 ) -> Grp
 {Compute the automorphism group using structural invaraiants.}
 
-	if IsAbelian(G) then return AutomorphismGroup(G); end if;
+	if IsAbelian(G) then 
+		vprint Autotopism, 1 :
+			"Group is abelian, using default magma automorphism function.";
+		return AutomorphismGroup(G); 
+	end if;
 
 	I := G;	
 	p := FactoredOrder (G)[1][1];
@@ -93,9 +97,11 @@ intrinsic AutomorphismGroupByInvariants(
 	e := Dimension(Codomain(T));
 	p := Characteristic(BaseRing(T));
 
-	// PENDING: should call Genus 2.
-	// It is about 100 times faster (a random trial). -JBW
-	if e lt 3 then return PseudoIsometryGroup(T); end if;
+	if e lt 3 then 
+			vprint Autotopism, 1 :
+			"Group is small genus, using small genus package.";
+			return PseudoIsometryGroupSG(T); 
+	end if;
 
  	GV := GL(d,p);
  	GW := GL(e,p);

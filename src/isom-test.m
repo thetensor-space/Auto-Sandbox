@@ -80,6 +80,7 @@
 
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
+//import "DerAuto.m" : ExponentiateDerivations;
 
 /**
 
@@ -373,17 +374,16 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
   
   // Use Brooksbank-Wilson TAMS 2012 to add isometries.-----------------------------------
-//  vprint Autotopism, 1 : "Adding isometries by Brooksbank-Wilson algorithm.";
-//  I := IsometryGroup(SystemOfForms(T));
-//  Subgroup := sub<Supergroup | Subgroup, I @ iotaV >;
-//  __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
+  vprint Autotopism, 1 : "Adding isometries by Brooksbank-Wilson algorithm.";
+  I := IsometryGroup(SystemOfForms(T));
+  Subgroup := sub<Supergroup | Subgroup, I @ iotaV >;
+  __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
   
   // PENDING: add (L+R)^# 
   
   // Add exp(L) where Der(T)=L+N a Levi decomposition.------------------------------------
-  vprint Autotopism, 1 : "Adding isometries by Brooksbank-Wilson algorithm.";
   vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
-  Subgroup, isWIrr := ExponentiateDerivations(T);
+  Subgroup := ExponentiateDerivations(T);
 //  D := DerivationAlgebra(T);  // Should check that the category has 1,2 fused.
   // PENDING: add the nilradical.
 //  doesit, L := HasLeviSubalgebra(D);
@@ -451,6 +451,8 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   if __THE_W_INDEX lt MAX then
 	  Supergroup, Subgroup, t := __SearchCosetsW(T, Supergroup,Subgroup,piV, piW, __THE_W_INDEX, MAX);
 	  vprint Autotopism, 1 : "Total time ", t;
+	else
+		vprint Autotopism, 1 : "Aborting, index too large.";
    end if;
  
 

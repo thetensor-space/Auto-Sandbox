@@ -23,14 +23,27 @@ __InverseNormSimple := function (STAN, s)
 	 
   assert s in STAN;
 	 assert s eq s @ STAN`Star;
+	 if Nrows(s) eq 1 then 
+	 		if IsSquare(s[1][1]) then
+	 			return true, SquareRoot(s[1][1]);
+	 		else
+		 		return false, _;
+			end if;
+	 end if;
 	 
 // Question (PAB, 07-31-2016): this now works for unitary type too?
-	 F0 := STAN`StarSimpleInfo`reflexiveForm;
-	 F := s * F0;
-	 b := TransformForm (F, name);
-	 assert b in STAN;
-	 a := b @ STAN`Star;
-	 return (a @ STAN`Star) * a eq s, a;
+	try 
+ 		F0 := STAN`StarSimpleInfo`reflexiveForm;
+	 	F := s * F0;
+	 	b := TransformForm (F, name);
+	 	assert b in STAN;
+	 	a := b @ STAN`Star;
+	 	return (a @ STAN`Star) * a eq s, a;
+	catch e
+		print STAN;
+		print STAN`StarSimpleInfo;
+		error ("no form");
+	end try;
 	 
 //return a;
 
