@@ -80,7 +80,6 @@
 
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
-//import "DerAuto.m" : ExponentiateDerivations;
 
 /**
 
@@ -100,9 +99,9 @@ intrinsic IsIsometric( S::TenSpcElt, T::TenSpcElt) -> Mtrx
 {Decides if given tensors are isometric.}
 
   require IsAlternating(S) or IsSymmetric(S) : 
-	"First argument is not alternating or symmetric.";
+		"First argument is not alternating or symmetric.";
   require IsAlternating(T) or IsSymmetric(T) : 
-	"Second argument is not alternating or symmetric.";
+		"Second argument is not alternating or symmetric.";
   
   e := Dimension(Codomain(S));
   d := Dimension(Domain(S)[1]);
@@ -119,23 +118,34 @@ intrinsic IsIsometric( S::TenSpcElt, T::TenSpcElt) -> Mtrx
   if Dimension (space) eq 0 then return false, _; end if;
 
   //  TBD: This part can surely be made deterministic, a la Brooksbank-Luks
-  LIMIT := 20;
+  N := NullSpace(__vector_to_matrix(space.1,d,d));
+  for i in [2..Ngens(space)] do
+	  N := N meet NullSpace( __vector_to_matrix(space.i, d,d));
+	  if Dimension(N) eq 0 then
+	  	break;
+	  end if;
+	end for;
+	if Dimension(N)gt 0 then 
+		return false, _;
+	end if;
+	
+  LIMIT := 20*Dimension(space);
   i := 0;
   found := false;
   while (i lt LIMIT) and (not found) do
-	i +:= 1;
-	U,V := __vector_to_matrix(Random (space), d,d);
-	if __SANITY_CHECK then
-	  assert forall { i : i in [1..e] | U * SF[i] eq TF[i] * Transpose (V) };
-	end if;
-	if (Rank (U) eq d) and (Rank (V) eq d) then
-	  found := true;
-	end if;
+		i +:= 1;
+		U,V := __vector_to_matrix(Random (space), d,d);
+		if __SANITY_CHECK then
+	  	assert forall { i : i in [1..e] | U * SF[i] eq TF[i] * Transpose (V) };
+		end if;
+		if (Rank (U) eq d) and (Rank (V) eq d) then
+	  	found := true;
+		end if;
   end while;
   if (not found) then
-	// This is Monte Carlo!	 Will need to change.
-	vprint Autotopism, 2 : "Monte carlo test of invertible failed.";
-	return false, _;
+		// This is Monte Carlo!	 Will need to change.
+		vprint Autotopism, 3 : "\t[WARNING] :Monte carlo test of invertible failed.";
+		return false, _;
   end if;
 	 
   /* solve the adjoint algebra problem */
@@ -271,7 +281,7 @@ __SearchCosetsW := function(T, Supergroup, Subgroup, piV, piW, __THE_W_INDEX, MA
   // test to know if that would be profitable, here we continue working
   // on the cosets.
   //------------------------------------------------------------------------------------
-  vprint Autotopism, 1 : "Now searching orderly.";
+  vprint Autotopism, 1 : "Orderly search.";
   t2 := Cputime();
   C := Set(LMGRightTransversal(UW, LW));
   if __SANITY_CHECK then
@@ -316,7 +326,7 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   if not IsFullyNondegenerate(T) then
   	vprint Autotopism, 1 : "Degenerate case not yet implemented.";
   	return Supergroup, Subgroup;
-/*  	
+ /* 	
   	rad := Radical(T)[1];
   	V := Domain(T)[1];
   	C := Complement(V,rad);
@@ -327,48 +337,53 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   	
   	T0 := Subtensor(T,[* C,C, I *]);
 
-	Supergroup0 := Supergroup;
-	for h in Generators(R) do
-		Supergroup0 := Stabilizer(Supergroup0,h);
-	end for;
-	// Now this is 1 on R so C can restrict to C.
+		Supergroup0 := Supergroup;
+		for h in Generators(DirectSum(rad,W)) do
+			Supergroup0 := Stabilizer(Supergroup0,h);
+		end for;
+		
+		// Now Subgroups0 is 1 on rad so T0 can restrict to C.
+		U0, L0 := PseudoIsometryGroup(T0 : Supergroup:=Supergroup0);
 	
-	U0, L0 := PseudoIsometryGroup(T0 : Supergroup:=Supergroup0);
-	
-	// Add back the full maps on R->V.
+		// Add back the full maps on R->V.
+		
   	return Supergroup,  Subgroup;
 */
   end if;
 
   require IsAlternating(T) or IsSymmetric(T) :
-	"First argument should be alternating or symmetric.";
+		"First argument should be alternating or symmetric.";
   
   K := BaseRing(T);
-  d := Dimension(Domain(T)[1]);
-  e := Dimension(Codomain(T));
-  V := Domain(T)[1];
-  W := Codomain(T);
+  d0 := Dimension(Domain(T)[1]);
+  d := Degree(Domain(T)[1]);
+  e0 := Dimension(Codomain(T));
+  e := Degree(Codomain(T));
+  
+  V := Parent(Domain(T)[1]);
+  W := Parent(Codomain(T));
 
   iotaV := hom<GL(d,K)->GL(d+e,K) | x:->DiagonalJoin(x,IdentityMatrix(K,e))>;
+  iota0V := hom<GL(d0,K)->GL(d+e,K) | x:->DiagonalJoin(x,IdentityMatrix(K,(d-d0)+e))>;
   iotaW := hom<GL(e,K)->GL(d+e,K) | x:->DiagonalJoin(IdentityMatrix(K,d), x)>;
   piV := hom<GL(d+e,K)->GL(d,K) | x:->ExtractBlock(x,1,1,d,d)>;
   piW := hom<GL(d+e,K)->GL(e,K) | x:->ExtractBlock(x,d+1,d+1,e,e)>;
   
   // Decide on appropriate super- and sub-groups.
   if ISA(Type(Supergroup), GrpMat) then
-	require Supergroup subset GL(d+e,K) :
-	  "Supergroup should be contained in GL(V+W).";
+		require Supergroup subset GL(d+e,K) :
+	  	"Supergroup should be contained in GL(V+W).";
   else
-	// By default GL(d,K) x GL(e,K)
-	GV:=sub<GL(d+e,K)|[DiagonalJoin(g,IdentityMatrix(K,e)):g in Generators(GL(d,K))]>;
-	GW:=sub<GL(d+e,K)|[DiagonalJoin(IdentityMatrix(K,d),g):g in Generators(GL(e,K))]>;
-	Supergroup := sub<GL(d+e,K) | GV, GW >;
+		// By default GL(d,K) x GL(e,K)
+		GV:=sub<GL(d+e,K)|[DiagonalJoin(g,IdentityMatrix(K,e)):g in Generators(GL(d,K))]>;
+		GW:=sub<GL(d+e,K)|[DiagonalJoin(IdentityMatrix(K,d),g):g in Generators(GL(e,K))]>;
+		Supergroup := sub<GL(d+e,K) | GV, GW >;
   end if;
   if ISA(Type(Subgroup), GrpMat) then
-	require Subgroup subset Supergroup :
-	  "Subgroup should be contained in supergroup.";
+		require Subgroup subset Supergroup :
+	  	"Subgroup should be contained in supergroup.";
   else
-	Subgroup := sub<Supergroup|[]>;
+		Subgroup := sub<Supergroup|[]>;
   end if;
 
   __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
@@ -376,24 +391,19 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   // Use Brooksbank-Wilson TAMS 2012 to add isometries.-----------------------------------
   vprint Autotopism, 1 : "Adding isometries by Brooksbank-Wilson algorithm.";
   I := IsometryGroup(SystemOfForms(T));
-  Subgroup := sub<Supergroup | Subgroup, I @ iotaV >;
+  Subgroup := sub<Supergroup | Subgroup, I @ iota0V >;
   __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
   
   // PENDING: add (L+R)^# 
   
   // Add exp(L) where Der(T)=L+N a Levi decomposition.------------------------------------
-  vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
-  Subgroup := ExponentiateDerivations(T);
-//  D := DerivationAlgebra(T);  // Should check that the category has 1,2 fused.
-  // PENDING: add the nilradical.
-//  doesit, L := HasLeviSubalgebra(D);
-//  if doesit then
-//	A := ExponentiateLieAlgebraSS(L);
-	// Temporary issue, the return is on U,V,W, should be on V,W
-//	gensVW := [ExtractBlock(g,1+d,1+d,d+e,d+e) : g in Generators(A)];
-//	Subgroup := sub<Supergroup| Subgroup, gensVW>;
-//  end if;
-  __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
+  try
+	  vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
+  	Subgroup := ExponentiateDerivations(T);
+  	__THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
+  catch e
+  	vprint Autotopism, 1 : "Lie algebra methods not fully supported for this tensor", e;
+  end try;
 
 // NOW LOWER THE SUPER GROUP--------------------------------------------------------------
   	if UseGraph and Log(2,__THE_W_INDEX) gt (2*(e-2)) then

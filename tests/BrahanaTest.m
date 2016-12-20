@@ -27,6 +27,8 @@ BrahanaTest := function(p)
 		print "";
 	catch e
 		print i, " FAILED ", e;		
+		Append(~times, -1);
+		orders[i] := -1;
 		failed +:= 1;
 	end try;
 	end for;
