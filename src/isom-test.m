@@ -390,7 +390,11 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   
   // Use Brooksbank-Wilson TAMS 2012 to add isometries.-----------------------------------
   vprint Autotopism, 1 : "Adding isometries by Brooksbank-Wilson algorithm.";
-  I := IsometryGroup(SystemOfForms(T));
+  if GetVerbose("Autotopism") gt 0 then
+    I := IsometryGroup(SystemOfForms(T));
+  else
+    I := IsometryGroup(SystemOfForms(T) : DisplayStructure:=false);
+  end if;
   Subgroup := sub<Supergroup | Subgroup, I @ iota0V >;
   __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
   

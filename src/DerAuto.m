@@ -106,7 +106,11 @@ vprint Autotopism, 2 : "---------------------";
   // compute isometries  
   S := SystemOfForms (T);
 vprint Autotopism, 2 : "[INFO]   here is the structure of Isom(T):";
-  ISOM := IsometryGroup (S);
+  if GetVerbose("Autotopism") gt 0 then
+    ISOM := IsometryGroup (S);
+  else
+    ISOM := IsometryGroup(S : DisplayStructure:=false);
+  end if;
 vprint Autotopism, 2 : "---------------------";
   
   
