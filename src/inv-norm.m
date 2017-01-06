@@ -12,24 +12,40 @@ __InverseNormSimple := function (STAN, s)
 
 	assert assigned STAN`StarSimpleInfo;
 	name := STAN`StarSimpleInfo`simpleParameters[1];
-	 if name eq "exchange" then
+	if name eq "exchange" then
 	  a := STAN!1;
 	  m := Degree(STAN) div 2; 
 	  InsertBlock(~a, ExtractBlock(s,1,1,m,m), 1,1);
 	  return (a @ STAN`Star) * a eq s, a;
-//		return a;
-	//	   error ("the exchange case has not yet been implemented");
-	 end if;
+	end if;
 	 
-  assert s in STAN;
-	 assert s eq s @ STAN`Star;
-	 if Nrows(s) eq 1 then 
-	 		if IsSquare(s[1][1]) then
-	 			return true, SquareRoot(s[1][1]);
-	 		else
-		 		return false, _;
-			end if;
-	 end if;
+    assert s in STAN;
+	assert s eq s @ STAN`Star;
+	
+	/* deal with degree 1 first */
+	if Nrows (s) eq 1 then 
+	
+	   assert not ((name eq "symplectic") or (name eq "exchange"));
+	   K := BaseRing (STAN);
+	
+	   if name eq "unitary" then
+         f := Degree (K); assert f mod 2 eq 0;
+         k := GF (Characteristic (K)^(f div 2));
+         ss := s[1][1];
+         assert ss in k;
+         isit, aa := NormEquation (K, k!ss);
+         assert isit;
+         return true, STAN![aa];         
+      else  // orthogonal ... put in the square root again
+         ss := k!(s[1][1]);
+         isit, aa := IsSquare (ss);
+         if not isit then
+           "(orthogonal degree 1: entry has no square root in ground field)";
+         end if;
+         return true, STAN![aa];
+      end if;
+      
+	end if;
 	 
 // Question (PAB, 07-31-2016): this now works for unitary type too?
 	try 
@@ -71,7 +87,6 @@ __InverseNormSemisimple := function (T, s)
 	 sc := C * s * Cinv;
 	 pos := 1;
 	 ac := T!0;
-	 
 	 for i in [1..#simples] do
 		 Si := simples[i];
 		 assert assigned Si`StarSimpleInfo;
@@ -86,7 +101,7 @@ __InverseNormSemisimple := function (T, s)
 		  return false, _;
 		 end if;
 		 aci := im_aci @ gi;
-		 InsertBlock (~ac, aci, pos, pos);	   
+		 InsertBlock (~ac, aci, pos, pos);	  
 		 pos +:= degrees[i];
 	 end for;
 	 
@@ -113,12 +128,13 @@ end function;
   Solutions to $s=N(a)$ form a coset $tA^{\#}$.
 
  */
-intrinsic InverseNorm(A::Alg, s::AlgElt) -> BoolElt, AlgElt
-{Solve for a where s=N(a)=a^* a.}
+intrinsic InverseNorm (A::Alg, s::AlgElt) -> BoolElt, AlgElt
+  {Solve for a where s = N(a) = a^* a.}
 
   assert RecogniseStarAlgebra (A);
   J := A`StarAlgebraInfo`jacobsonRadical;
   T := A`StarAlgebraInfo`taftComplement;
+
   if (Dimension (J) eq 0) or (s in T) then
 	return __InverseNormSemisimple (T, s);
   end if;	
@@ -146,6 +162,9 @@ intrinsic InverseNorm(A::Alg, s::AlgElt) -> BoolElt, AlgElt
 
   if __SANITY_CHECK then	 
 	 assert (a @ A`Star) * a eq s;
+	 "win";
   end if;
-  return true, a;
+  
+return true, a;
+
 end intrinsic;
