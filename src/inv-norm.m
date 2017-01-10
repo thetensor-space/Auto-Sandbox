@@ -37,7 +37,7 @@ __InverseNormSimple := function (STAN, s)
          assert isit;
          return true, STAN![aa];         
       else  // orthogonal ... put in the square root again
-         ss := k!(s[1][1]);
+         ss := K!(s[1][1]);
          isit, aa := IsSquare (ss);
          if not isit then
            "(orthogonal degree 1: entry has no square root in ground field)";
@@ -115,7 +115,7 @@ return true, a;
 end function;
 
 
-/**
+/*
 
   Given an algebra $A$ with involution $*$, and a Hermitian element
   $s=s^*$, determine if $s=N(a)=a^* a$ for some $a\in A$.  

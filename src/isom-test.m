@@ -95,56 +95,57 @@ import "Util.m" : Adj2, __vector_to_matrix;
   Such an $a$ exists if, and only if, $ta$ is an isometry $S->T$.
   
   */
-intrinsic IsIsometric( S::TenSpcElt, T::TenSpcElt) -> Mtrx
-{Decides if given tensors are isometric.}
+intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, Mtrx
+  {Decides if given tensors are isometric.}
 
-  require IsAlternating(S) or IsSymmetric(S) : 
+  require IsAlternating (S) or IsSymmetric (S) : 
 		"First argument is not alternating or symmetric.";
-  require IsAlternating(T) or IsSymmetric(T) : 
+  require IsAlternating (T) or IsSymmetric (T) : 
 		"Second argument is not alternating or symmetric.";
   
-  e := Dimension(Codomain(S));
-  d := Dimension(Domain(S)[1]);
-  if not (e eq Dimension(Codomain(T)) and d eq Dimension(Domain(T)[1])) then
+  e := Dimension (Codomain (S));
+  d := Dimension (Domain (S)[1]);
+  if not (e eq Dimension (Codomain (T)) and d eq Dimension (Domain (T)[1])) then
 	return false, _;
   end if;
-  if e*d eq 0 then return true, ZeroMatrix(BaseRing(S),0,0); end if;
+  if e*d eq 0 then return true, ZeroMatrix (BaseRing (S),0,0); end if;
 
-  SF := SystemOfForms(S);
-  TF := SystemOfForms(T);
+  SF := SystemOfForms (S);
+  TF := SystemOfForms (T);
 	 
   /* find U, V of full rank with U * S[i] = T[i] * V^t */
-  space := Adj2(SF, TF);
+  space := Adj2 (SF, TF);
+  
   if Dimension (space) eq 0 then return false, _; end if;
 
   //  TBD: This part can surely be made deterministic, a la Brooksbank-Luks
-  N := NullSpace(__vector_to_matrix(space.1,d,d));
-  for i in [2..Ngens(space)] do
-	  N := N meet NullSpace( __vector_to_matrix(space.i, d,d));
-	  if Dimension(N) eq 0 then
+  N := NullSpace (__vector_to_matrix(space.1, d, d));
+  for i in [2..Ngens (space)] do
+	  N := N meet NullSpace (__vector_to_matrix(space.i, d, d));
+	  if Dimension (N) eq 0 then
 	  	break;
 	  end if;
-	end for;
-	if Dimension(N)gt 0 then 
-		return false, _;
-	end if;
+  end for;
+  if Dimension (N) gt 0 then 
+	  return false, _;
+  end if;
 	
-  LIMIT := 20*Dimension(space);
+  LIMIT := 20 * Dimension (space);
   i := 0;
   found := false;
   while (i lt LIMIT) and (not found) do
 		i +:= 1;
-		U,V := __vector_to_matrix(Random (space), d,d);
+		U, V := __vector_to_matrix(Random (space), d, d);
 		if __SANITY_CHECK then
-	  	assert forall { i : i in [1..e] | U * SF[i] eq TF[i] * Transpose (V) };
+	  	   assert forall { i : i in [1..e] | U * SF[i] eq TF[i] * Transpose (V) };
 		end if;
 		if (Rank (U) eq d) and (Rank (V) eq d) then
-	  	found := true;
+	  	   found := true;
 		end if;
   end while;
   if (not found) then
 		// This is Monte Carlo!	 Will need to change.
-		vprint Autotopism, 3 : "\t[WARNING] :Monte carlo test of invertible failed.";
+		vprint Autotopism, 3 : "\t[WARNING] : Monte carlo test of invertible failed.";
 		return false, _;
   end if;
 	 
@@ -156,6 +157,7 @@ intrinsic IsIsometric( S::TenSpcElt, T::TenSpcElt) -> Mtrx
 	assert s in A;
 	assert s eq (s @ A`Star);
   end if;
+
   isit, a := InverseNorm (A, s);
   if not isit then return false, _; end if;
   
@@ -163,8 +165,10 @@ intrinsic IsIsometric( S::TenSpcElt, T::TenSpcElt) -> Mtrx
 
   if __SANITY_CHECK then  
 	assert forall { i : i in [1..e] | g * SF[i] * Transpose (g) eq TF[i] };
-  end if;	
-  return true, g;
+  end if;
+  	
+return true, g;
+
 end intrinsic;
 
 
@@ -493,3 +497,83 @@ intrinsic ProfileTensor( T::TenSpcElt )
 	
 	
 end intrinsic;
+
+/* ----------------------------------------------------------------------------- */
+/* --- James, I'm putting these additional functions here for the time being --- */
+/* ----------------------------------------------------------------------------- */
+
+
+intrinsic IsIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt
+
+  {Decides if the given matrix is an isometry between given tensors.}
+  // TBD: add require flags.
+  
+  S1 := SystemOfForms (T1);
+  S1g := [ g * S1[i] * Transpose (g) : i in [1..#S1] ];
+  
+return S1g eq SystemOfForms (T2);
+
+end intrinsic;
+
+
+
+// slight extension of James' earlier function -- now pass two TenSpcElt
+intrinsic IsPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx, h::Mtrx) -> BoolElt
+
+  {Decides if the given pair of matrices is a pseudo-isometry between given tensors.}
+  // TBD: add require flags.
+
+  S1 := SystemOfForms (T1);
+  S1g := [ g * S1[i] * Transpose(g) : i in [1..#S1] ]; 
+  S2 := SystemOfForms (T2);
+  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
+
+return S1g eq S2h;
+  
+end intrinsic;
+
+
+
+intrinsic InducePseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt, Mtrx
+
+  {Decides if the given matrix is the inner part of a pseudo-isometry 
+   between given tensors and, if so, finds the corresponding outer part.}
+  // TBD: add require flags.
+
+  S1 := SystemOfForms (T1);
+  S2 := SystemOfForms (T2);
+  e := #S1;
+  k := BaseRing (Parent (g));
+  d := Degree (Parent (g));
+  MS := KMatrixSpace (k, d, d);
+  
+  U1 := KMatrixSpaceWithBasis ([ MS!(g * S1[i] * Transpose (g)) : i in [1..e] ]);
+  U2 := KMatrixSpaceWithBasis ([ MS!(S2[i]) : i in [1..e] ]);
+  if U1 ne U2 then 
+    return false, _;
+  end if;
+     
+  mat := Matrix ([ Coordinates (U2, U1.i) : i in [1..e] ]);
+  h := GL (e, k)!Transpose (mat);
+  assert IsPseudoIsometry (T1, T2, g, h);
+
+return true, h;
+
+end intrinsic;
+
+
+
+intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) -> BoolElt, Mtrx
+
+  {Decides if the given matrix is the outer part of a pseudo-isometry between 
+   given tensors and, if so, finds a suitable lift.}
+  // TBD: add require flags.
+  
+  S2 := SystemOfForms (T2);
+  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
+  T2h := Tensor (S2h, 2, 1);
+
+return IsIsometric (T1, T2h);
+
+end intrinsic;
+
