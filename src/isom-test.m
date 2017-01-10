@@ -503,10 +503,28 @@ end intrinsic;
 /* ----------------------------------------------------------------------------- */
 
 
+intrinsic IsBalancedBimap (T::TenSpcElt) -> BoolElt
+  {Decides if the given tensor is a balanced bimap.}
+  D := Domain (T);
+return (#D eq 2) and (Dimension (D[1]) eq Dimension (D[2]));
+end intrinsic;
+
+
 intrinsic IsIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt
 
   {Decides if the given matrix is an isometry between given tensors.}
-  // TBD: add require flags.
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+		
+  require Nrows (g) eq Ncols (g) :
+        "Third argument is not a square matrix.";
+        
+  require Nrows (g) eq Dimension (Domain (T1)[1]) :
+        "Matrix has incompatible degree with tensor domain.";
   
   S1 := SystemOfForms (T1);
   S1g := [ g * S1[i] * Transpose (g) : i in [1..#S1] ];
@@ -521,7 +539,24 @@ end intrinsic;
 intrinsic IsPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx, h::Mtrx) -> BoolElt
 
   {Decides if the given pair of matrices is a pseudo-isometry between given tensors.}
-  // TBD: add require flags.
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+		
+  require Nrows (g) eq Ncols (g) :
+        "Third argument is not a square matrix.";
+        
+  require Nrows (h) eq Ncols (h) :
+        "Fourth argument is not a square matrix.";
+        
+  require Nrows (g) eq Dimension (Domain (T1)[1]) :
+        "Matrix has incompatible degree with tensor domain.";
+        
+  require Nrows (h) eq Dimension (Codomain (T2)) :
+        "Matrix has incompatible degree with tensor codomain.";
 
   S1 := SystemOfForms (T1);
   S1g := [ g * S1[i] * Transpose(g) : i in [1..#S1] ]; 
@@ -538,7 +573,18 @@ intrinsic InducePseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolEl
 
   {Decides if the given matrix is the inner part of a pseudo-isometry 
    between given tensors and, if so, finds the corresponding outer part.}
-  // TBD: add require flags.
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+		
+  require Nrows (g) eq Ncols (g) :
+        "Third argument is not a square matrix.";
+        
+  require Nrows (g) eq Dimension (Domain (T1)[1]) :
+        "Matrix has incompatible degree with tensor domain.";
 
   S1 := SystemOfForms (T1);
   S2 := SystemOfForms (T2);
@@ -567,7 +613,18 @@ intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) -> BoolElt,
 
   {Decides if the given matrix is the outer part of a pseudo-isometry between 
    given tensors and, if so, finds a suitable lift.}
-  // TBD: add require flags.
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+		
+  require Nrows (h) eq Ncols (h) :
+        "Third argument is not a square matrix.";
+        
+  require Nrows (h) eq Dimension (Codomain (T2≈ß)) :
+        "Matrix has incompatible degree with tensor codomain.";
   
   S2 := SystemOfForms (T2);
   S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
