@@ -623,7 +623,7 @@ intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) -> BoolElt,
   require Nrows (h) eq Ncols (h) :
         "Third argument is not a square matrix.";
         
-  require Nrows (h) eq Dimension (Codomain (T2≈ß)) :
+  require Nrows (h) eq Dimension (Codomain (T2)) :
         "Matrix has incompatible degree with tensor codomain.";
   
   S2 := SystemOfForms (T2);
