@@ -95,7 +95,7 @@ import "Util.m" : Adj2, __vector_to_matrix;
   Such an $a$ exists if, and only if, $ta$ is an isometry $S->T$.
   
   */
-intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, Mtrx
+intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, GrpMatElt
   {Decides if given tensors are isometric.}
 
   require IsAlternating (S) or IsSymmetric (S) : 
@@ -167,7 +167,7 @@ intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, Mtrx
 	assert forall { i : i in [1..e] | g * SF[i] * Transpose (g) eq TF[i] };
   end if;
   	
-return true, g;
+return true, GL (Nrows (g), BaseRing (Parent (g)))!g;
 
 end intrinsic;
 
@@ -503,6 +503,9 @@ end intrinsic;
 /* ----------------------------------------------------------------------------- */
 
 
+          /* ----- verification functions ----- */
+          
+
 intrinsic IsBalancedBimap (T::TenSpcElt) -> BoolElt
   {Decides if the given tensor is a balanced bimap.}
   D := Domain (T);
@@ -510,7 +513,49 @@ return (#D eq 2) and (Dimension (D[1]) eq Dimension (D[2]));
 end intrinsic;
 
 
-intrinsic IsIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt
+intrinsic IsIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup) -> BoolElt
+
+  {Decides if the given triple of matrices is an isotopism between given tensors.}
+  
+  require (#L eq 3) and forall { i : i in [1..3] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a triple of matrix group elements.";
+  
+  D1 := Domain (T1);
+  D2 := Domain (T2);
+  
+  require (#D1 eq 2) and (#D2 eq 2) : 
+     "Arguments 1 and 2 must be bimaps.";
+     
+  c := Dimension (D1[1]);
+  d := Dimension (D1[2]);
+
+  require (c eq Dimension (D2[1])) and (d eq Dimension (D2[2])) :
+     "Arguments 1 and 2 must have domains of equal dimension.";
+  
+  C1 := Codomain (T1);
+  C2 := Codomain (T2);
+  e := Dimension (C1);
+  
+  require (e eq Dimension (C2)) :
+     "Arguments 1 and 2 must have codomains of equal dimension";
+       
+  require [ Degree (Parent (L[i])) : i in [1,2,3] ] eq [c,d,e] :
+     "Degrees of operators are incompatible with domain and codomain of bimaps.";
+  
+  f := L[1];
+  g := L[2];
+  h := L[3];
+  S1 := SystemOfForms (T1);
+  S1g := [ f * S1[i] * Transpose (g) : i in [1..#S1] ];
+  S2 := SystemOfForms (T2);
+  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
+  
+return S1g eq S2h;
+
+end intrinsic;
+
+
+intrinsic IsIsometry (T1::TenSpcElt, T2::TenSpcElt, g::GrpMatElt) -> BoolElt
 
   {Decides if the given matrix is an isometry between given tensors.}
   
@@ -520,25 +565,21 @@ intrinsic IsIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt
   require IsBalancedBimap (T2) : 
 		"Second argument is not a balanced bimap.";
 		
-  require Nrows (g) eq Ncols (g) :
-        "Third argument is not a square matrix.";
-        
-  require Nrows (g) eq Dimension (Domain (T1)[1]) :
-        "Matrix has incompatible degree with tensor domain.";
-  
-  S1 := SystemOfForms (T1);
-  S1g := [ g * S1[i] * Transpose (g) : i in [1..#S1] ];
-  
-return S1g eq SystemOfForms (T2);
+  k := BaseRing (T1);
+  e := Dimension (Codomain (T1));
+		
+return IsIsotopism (T1, T2, < g , g , Identity (GL (e, k)) >);
 
 end intrinsic;
 
 
-
-// slight extension of James' earlier function -- now pass two TenSpcElt
-intrinsic IsPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx, h::Mtrx) -> BoolElt
+intrinsic IsPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, L::Tup) 
+  -> BoolElt
 
   {Decides if the given pair of matrices is a pseudo-isometry between given tensors.}
+  
+  require (#L eq 2) and forall { i : i in [1,2] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a pair of matrix group elements.";
   
   require IsBalancedBimap (T1) : 
 		"First argument is not a balanced bimap.";
@@ -546,30 +587,97 @@ intrinsic IsPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx, h::Mtrx) -> B
   require IsBalancedBimap (T2) : 
 		"Second argument is not a balanced bimap.";
 		
-  require Nrows (g) eq Ncols (g) :
-        "Third argument is not a square matrix.";
-        
-  require Nrows (h) eq Ncols (h) :
-        "Fourth argument is not a square matrix.";
-        
-  require Nrows (g) eq Dimension (Domain (T1)[1]) :
-        "Matrix has incompatible degree with tensor domain.";
-        
-  require Nrows (h) eq Dimension (Codomain (T2)) :
-        "Matrix has incompatible degree with tensor codomain.";
-
-  S1 := SystemOfForms (T1);
-  S1g := [ g * S1[i] * Transpose(g) : i in [1..#S1] ]; 
-  S2 := SystemOfForms (T2);
-  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
-
-return S1g eq S2h;
+return IsIsotopism (T1, T2, < L[1] , L[1] , L[2] >);
   
 end intrinsic;
 
 
 
-intrinsic InducePseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolElt, Mtrx
+intrinsic IsPrincipalIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup) 
+    -> BoolElt
+
+  {Decides if the given pair of matrices is a principal isotopism between given tensors.}
+  
+  require (#L eq 2) and forall { i : i in [1,2] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a pair of matrix group elements.";
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+		
+  k := BaseRing (T1);
+  e := Dimension (Codomain (T1));
+  
+return IsIsotopism (T1, T2, < L[1] , L[2] , Identity (GL (e, k)) >);
+   
+end intrinsic;
+
+
+
+          /* ----- induce and lift functions ----- */
+          
+          
+intrinsic InduceIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup) 
+    -> BoolElt, GrpMatElt
+    
+  {Decides if the given pair is the inner part of an isotopism between given
+   tensors and, if so, finds the corresponding outer part.}
+	
+  require (#L eq 2) and forall { i : i in [1,2] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a pair of matrix group elements.";	
+     
+  D1 := Domain (T1);
+  D2 := Domain (T2);
+  
+  require (#D1 eq 2) and (#D2 eq 2) : 
+     "Arguments 1 and 2 must be bimaps.";
+     
+  c := Dimension (D1[1]);
+  d := Dimension (D1[2]);
+
+  require (c eq Dimension (D2[1])) and (d eq Dimension (D2[2])) :
+     "Arguments 1 and 2 must have domains of equal dimension.";
+  
+  C1 := Codomain (T1);
+  C2 := Codomain (T2);
+  e := Dimension (C1);
+  
+  require (e eq Dimension (C2)) :
+     "Arguments 1 and 2 must have codomains of equal dimension";
+       
+  require [ Degree (Parent (L[i])) : i in [1,2] ] eq [c,d] :
+     "Degrees of operators are incompatible with domains of bimaps.";
+  
+  f := L[1];
+  g := L[2];
+
+  S1 := SystemOfForms (T1);
+  S2 := SystemOfForms (T2);
+  assert (#S1 eq e) and (#S2 eq e);
+  
+  k := BaseRing (T1);
+  MS := KMatrixSpace (k, c, d);
+  
+  U1 := KMatrixSpaceWithBasis ([ MS!(f * S1[i] * Transpose (g)) : i in [1..e] ]);
+  U2 := KMatrixSpaceWithBasis ([ MS!(S2[i]) : i in [1..e] ]);
+  if U1 ne U2 then 
+    return false, _;
+  end if;
+     
+  mat := Matrix ([ Coordinates (U2, U1.i) : i in [1..e] ]);
+  h := GL (e, k)!Transpose (mat);
+  assert IsIsotopism (T1, T2, < f, g, h >);
+
+return true, h;
+   
+end intrinsic;
+          
+
+
+intrinsic InducePseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::GrpMatElt) 
+  -> BoolElt, GrpMat
 
   {Decides if the given matrix is the inner part of a pseudo-isometry 
    between given tensors and, if so, finds the corresponding outer part.}
@@ -580,36 +688,14 @@ intrinsic InducePseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, g::Mtrx) -> BoolEl
   require IsBalancedBimap (T2) : 
 		"Second argument is not a balanced bimap.";
 		
-  require Nrows (g) eq Ncols (g) :
-        "Third argument is not a square matrix.";
-        
-  require Nrows (g) eq Dimension (Domain (T1)[1]) :
-        "Matrix has incompatible degree with tensor domain.";
-
-  S1 := SystemOfForms (T1);
-  S2 := SystemOfForms (T2);
-  e := #S1;
-  k := BaseRing (Parent (g));
-  d := Degree (Parent (g));
-  MS := KMatrixSpace (k, d, d);
-  
-  U1 := KMatrixSpaceWithBasis ([ MS!(g * S1[i] * Transpose (g)) : i in [1..e] ]);
-  U2 := KMatrixSpaceWithBasis ([ MS!(S2[i]) : i in [1..e] ]);
-  if U1 ne U2 then 
-    return false, _;
-  end if;
-     
-  mat := Matrix ([ Coordinates (U2, U1.i) : i in [1..e] ]);
-  h := GL (e, k)!Transpose (mat);
-  assert IsPseudoIsometry (T1, T2, g, h);
-
-return true, h;
+return InduceIsotopism (T1, T2, < g, g >);
 
 end intrinsic;
 
 
 
-intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) -> BoolElt, Mtrx
+intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) 
+   -> BoolElt, GrpMatElt
 
   {Decides if the given matrix is the outer part of a pseudo-isometry between 
    given tensors and, if so, finds a suitable lift.}
@@ -635,111 +721,27 @@ return IsIsometric (T1, T2h);
 end intrinsic;
 
 
+/* ---------------------------------------------------------------- */
+/* This is the analogue of IsIsometric above. It allows us to test  */
+/* if a given outer map can be lifted to an isotopism.              */
+/* ---------------------------------------------------------------- */
 
-intrinsic IsIsotopism (T1::TenSpcElt, T2::TenSpcElt, f::Mtrx, g::Mtrx, h::Mtrx) 
-    -> BoolElt
+intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt) 
+   -> BoolElt, GrpMatElt, GrpMatElt
 
-  {Decides if the given triple of matrices is an isotopism between given tensors.}
-  
-  D1 := Domain (T1);
-  require #D1 eq 2 : "First argument is not a bimap.";
-  C1 := Codomain (T1);
-		
-  require Nrows (f) eq Ncols (f) :
-        "Third argument is not a square matrix.";
-        
-  require Nrows (g) eq Ncols (g) :
-        "Fourth argument is not a square matrix.";
-        
-  require Nrows (h) eq Ncols (h) :
-        "Fifth argument is not a square matrix.";
-        
-  require Nrows (f) eq Dimension (D1[1]) :
-        "Third argument has incompatible degree with tensor domain.";
-        
-  require Nrows (g) eq Dimension (D1[2]) :
-        "Fourth argument has incompatible degree with tensor domain.";
-        
-  require Nrows (h) eq Dimension (C1) :
-        "Fifth argument has incompatible degree with tensor codomain.";
-  
-  S1 := SystemOfForms (T1);
-  S1g := [ f * S1[i] * Transpose (g) : i in [1..#S1] ];
-  S2 := SystemOfForms (T2);
-  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
-  
-return S1g eq S2h;
-
-end intrinsic;
-
-
-
-intrinsic IsPrincipalIsotopism (T1::TenSpcElt, T2::TenSpcElt, f::Mtrx, g::Mtrx) 
-    -> BoolElt
-
-  {Decides if the given pair of matrices is a principal isotopism between given tensors.}
-  
-return IsIsotopism (T1, T2, f, g, 
-   Identity (MatrixAlgebra (BaseRing (T1), Dimension (Codomain (T1)))));
+  {Decides if there is a principal isotopism between given tensors and, 
+   if there is, finds one.}
+   
+// JAMES: this is the part I'll work on now. Then I'll do some testing
+// on the whole suite of new intrinsics.
    
 end intrinsic;
 
+/* ---------------------------------------------------------------- */
 
 
-intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt) -> BoolElt, Mtrx
-
-  {Decides if there is a principal isotopism between given tensors and, if there is,
-   finds one.}
-   
-end intrinsic;
-
-
-
-intrinsic InduceIsotopism (T1::TenSpcElt, T2::TenSpcElt, f::Mtrx, g::Mtrx) 
-    -> BoolElt, Mtrx
-    
-  {Decides if the given pair is the inner part of an isotopism between given
-   tensors and, if so, finds the corresponding outer part.}
-		
-  require Nrows (f) eq Ncols (f) :
-        "Third argument is not a square matrix.";
-    
-  require Nrows (g) eq Ncols (g) :
-        "Fourth argument is not a square matrix.";
-        
-  require Nrows (f) eq Dimension (Domain (T1)[1]) :
-        "Third argument has incompatible degree with tensor domain.";
-        
-  require Nrows (g) eq Dimension (Domain (T1)[2]) :
-        "Fourth argument has incompatible degree with tensor domain.";
-
-  S1 := SystemOfForms (T1);
-  S2 := SystemOfForms (T2);
-  k := BaseRing (T1);
-  D1 := Domain (T1);
-  c := Dimension (D1[1]);
-  d := Dimension (D1[2]);
-  e := Dimension (Codomain (T1));
-  assert (#S1 eq e) and (#S2 eq e);
-  MS := KMatrixSpace (k, c, d);
-  
-  U1 := KMatrixSpaceWithBasis ([ MS!(f * S1[i] * Transpose (g)) : i in [1..e] ]);
-  U2 := KMatrixSpaceWithBasis ([ MS!(S2[i]) : i in [1..e] ]);
-  if U1 ne U2 then 
-    return false, _;
-  end if;
-     
-  mat := Matrix ([ Coordinates (U2, U1.i) : i in [1..e] ]);
-  h := GL (e, k)!Transpose (mat);
-  assert IsIsotopism (T1, T2, f, g, h);
-
-return true, h;
-   
-end intrinsic;
-
-
-
-intrinsic LiftIsotopism (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) -> BoolElt, Mtrx, Mtrx
+intrinsic LiftIsotopism (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) 
+   -> BoolElt, GrpMatElt, GrpMatElt
 
   {Decides if the given matrix is the outer part of an isotopism between 
    given tensors and, if so, finds a suitable lift.}
