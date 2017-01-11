@@ -600,12 +600,6 @@ intrinsic IsPrincipalIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup)
   
   require (#L eq 2) and forall { i : i in [1,2] | Type (L[i]) eq GrpMatElt } :
      "Argument 3 must be a pair of matrix group elements.";
-  
-  require IsBalancedBimap (T1) : 
-		"First argument is not a balanced bimap.";
-		
-  require IsBalancedBimap (T2) : 
-		"Second argument is not a balanced bimap.";
 		
   k := BaseRing (T1);
   e := Dimension (Codomain (T1));
@@ -694,7 +688,7 @@ end intrinsic;
 
 
 
-intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) 
+intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::GrpMatElt) 
    -> BoolElt, GrpMatElt
 
   {Decides if the given matrix is the outer part of a pseudo-isometry between 
@@ -705,12 +699,9 @@ intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx)
 		
   require IsBalancedBimap (T2) : 
 		"Second argument is not a balanced bimap.";
-		
-  require Nrows (h) eq Ncols (h) :
-        "Third argument is not a square matrix.";
         
-  require Nrows (h) eq Dimension (Codomain (T2)) :
-        "Matrix has incompatible degree with tensor codomain.";
+  require Degree (Parent (h)) eq Dimension (Codomain (T2)) :
+        "Argument 3 has incompatible degree with tensor codomain.";
   
   S2 := SystemOfForms (T2);
   S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
@@ -724,6 +715,7 @@ end intrinsic;
 /* ---------------------------------------------------------------- */
 /* This is the analogue of IsIsometric above. It allows us to test  */
 /* if a given outer map can be lifted to an isotopism.              */
+/* NOTE: the independence of actions makes this much easier.        */
 /* ---------------------------------------------------------------- */
 
 intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt) 
@@ -732,8 +724,58 @@ intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt)
   {Decides if there is a principal isotopism between given tensors and, 
    if there is, finds one.}
    
-// JAMES: this is the part I'll work on now. Then I'll do some testing
-// on the whole suite of new intrinsics.
+  D1 := Domain (T1);
+  c := Dimension (D1[1]);
+  d := Dimension (D1[2]);
+  e := Dimension (Codomain (T1));
+   
+  S1 := SystemOfForms (T1);
+  S2 := SystemOfForms (T2);
+   
+  space := Adj2 (S1, S2);
+  
+  if Dimension (space) eq 0 then return false, _, _; end if;
+
+  //  TBD: This part can surely be made deterministic, a la Brooksbank-Luks
+  X, Y := __vector_to_matrix(space.1, c, d);
+  NU := Nullspace (X);
+  NV := Nullspace (Y);
+  for i in [2..Ngens (space)] do
+      X, Y := __vector_to_matrix(space.i, c, d);
+      NU meet:= Nullspace (X);
+      NV meet:= Nullspace (Y);
+	  if (Dimension (NU) eq 0) and (Dimension (NV) eq 0) then
+	  	break;
+	  end if;
+  end for;
+  if (Dimension (NU) gt 0) or (Dimension (NV) gt 0) then 
+	  return false, _, _;
+  end if;
+	
+  LIMIT := 20 * Dimension (space);
+  i := 0;
+  found := false;
+  while (i lt LIMIT) and (not found) do
+		i +:= 1;
+		X, Y := __vector_to_matrix(Random (space), c, d);
+		if __SANITY_CHECK then
+	  	   assert forall { i : i in [1..e] | X * S1[i] eq S2[i] * Transpose (Y) };
+		end if;
+		if (Rank (X) eq c) and (Rank (Y) eq d) then
+	  	   found := true;
+		end if;
+  end while;
+  if (not found) then
+		// This is Monte Carlo!	 Will need to change.
+		return false, _, _;
+  end if;
+  
+  f := GL (c, BaseRing (space))!X;
+  ginv := GL (d, BaseRing (space))!Y;
+  g := ginv^-1;
+  assert IsPrincipalIsotopism (T1, T2, < f, g >);
+
+return true, f, g;
    
 end intrinsic;
 
