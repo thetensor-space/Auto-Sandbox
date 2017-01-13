@@ -796,4 +796,37 @@ return IsPrincipallyIsotopic (T1, T2h);
 
 end intrinsic;
    
+/* ---------------------------------------------------------------- */
+// this is a temporary intrinsic for what will become an action (exponent)
+intrinsic IsotopicImage (T::TenSpcElt, L::Tup) -> TenSpcElt
+  {Computes the image of a tensor under the action of a triple of matrices.}
+  
+  require (#L eq 3) and forall { i : i in [1..3] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a triple of matrix group elements.";
+  
+  D := Domain (T);
+  C := Codomain (T);
+  
+  require (#D eq 2) : 
+     "Argument 1 must be a bimap.";
+     
+  c := Dimension (D[1]);
+  d := Dimension (D[2]);
+  e := Dimension (C);
+        
+  require [ Degree (Parent (L[i])) : i in [1,2,3] ] eq [c,d,e] :
+     "Degrees of operators are incompatible with domain and codomain of bimaps.";
+  
+  f := L[1];
+  g := L[2];
+  hinv := L[3];
+  h := hinv^-1;
+  S := SystemOfForms (T);
+  Sfg := [ f * S[i] * Transpose (g) : i in [1..#S] ];
+  Sfgh := [ &+[ h[i][j] * Sfg[i] : i in [1..#Sfg] ] : j in [1..Ncols (h)] ];
+  Tfgh := Tensor (Sfgh, 2, 1);
+
+return Tfgh;
+  
+end intrinsic;
 
