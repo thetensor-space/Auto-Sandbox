@@ -81,7 +81,44 @@
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
 
-/**
+// NEEDS TO BE EXPANDED ... JUST SYMMETRIC AND ALTERNATING RIGHT NOW
+intrinsic IsHermitianBimap (T::TenSpcElt) -> BoolElt
+  {Decides if the given tensor is an Hermitian bimap.}
+return IsAlternating (T) or IsSymmetric (T);
+end intrinsic;
+
+
+// some version might be an intrinsic at some stage
+__nondegenerate_tensor := function (T)
+  D := Domain (T);
+  U := D[1];
+  V := D[2];
+  RAD := Radical (T);
+  RU := RAD[1];
+  RV := RAD[2];
+  if (Dimension (RU) eq 0) and (Dimension (RV) eq 0) then  // T already nondegenerate
+      return Identity (GL (Dimension (U), BaseRing (U))), 
+             Identity (GL (Dimension (V), BaseRing (V))),
+             T;
+  end if;
+  U0 := Complement (U, RU);
+  V0 := Complement (V, RV);
+  f := GL (Dimension (U), BaseRing (U))!Matrix (Basis (U0) cat Basis (RU));
+  if IsHermitianBimap (T) then
+      g := f;
+  else
+      g := GL (Dimension (V), BaseRing (V))!Matrix (Basis (V0) cat Basis (RV));
+  end if;
+  TT := IsotopicImage (T, <f,g,Identity (GL (Dimension (Codomain (T)), BaseRing (T)))>);
+  SS := SystemOfForms (TT);
+  S0 := [ ExtractBlock (SS[i], 1, 1, Dimension (U0), Dimension (V0)) : i in [1..#SS] ];
+  T0 := Tensor (S0, 2, 1);
+return f, g, T0;
+end function;
+
+
+
+/*
 
   Given tensors $S$ and $T$ into a common vector space, 
   decides if they are isometric.
@@ -94,14 +131,8 @@ import "Util.m" : Adj2, __vector_to_matrix;
   Next, the algorithm solve for $a\in Adj(T)$ with $t^*t=N(a)$.
   Such an $a$ exists if, and only if, $ta$ is an isometry $S->T$.
   
-  */
-intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, GrpMatElt
-  {Decides if given tensors are isometric.}
-
-  require IsAlternating (S) or IsSymmetric (S) : 
-		"First argument is not alternating or symmetric.";
-  require IsAlternating (T) or IsSymmetric (T) : 
-		"Second argument is not alternating or symmetric.";
+*/
+__IsIsometric_ND := function (S, T) 
   
   e := Dimension (Codomain (S));
   d := Dimension (Domain (S)[1]);
@@ -169,7 +200,9 @@ intrinsic IsIsometric (S::TenSpcElt, T::TenSpcElt) -> BoolElt, GrpMatElt
   	
 return true, GL (Nrows (g), BaseRing (Parent (g)))!g;
 
-end intrinsic;
+end function;
+
+
 
 
 //-------------------- PSEUDO-ISOMETRIES--------------------------------------------------
@@ -717,6 +750,44 @@ end intrinsic;
 /* if a given outer map can be lifted to an isotopism.              */
 /* NOTE: the independence of actions makes this much easier.        */
 /* ---------------------------------------------------------------- */
+
+
+intrinsic IsIsometric (T1::TenSpcElt, T2::TenSpcElt) -> BoolElt, GrpMatElt
+  {Decides if given tensors are isometric.}
+
+  require IsHermitianBimap (T1) : 
+		"First argument is not an Hermitian bimap.";
+  require IsHermitianBimap (T2) : 
+		"Second argument is not an Hermitian bimap.";
+		
+  f01, g01, T01 := __nondegenerate_tensor (T1);
+  f02, g02, T02 := __nondegenerate_tensor (T2);
+  assert g01 eq f01;
+  assert g02 eq f02;
+  
+  if Degree (Parent (f01)) ne Degree (Parent (f02)) then
+      return false, _;
+  end if;
+  
+  // now T01 and T02 are nondegenerate tensors
+  isit, g0 := __IsIsometric_ND (T01, T02); 
+  if not isit then
+      return false, _;
+  end if;
+  
+  e := Degree (Parent (f01)) - Degree (Parent (g0));
+  if e gt 0 then
+      g0 := DiagonalJoin (g0, Identity (GL (e, BaseRing (T1))));
+      g0 := GL (Degree (Parent (f01)), BaseRing (T1))!g0;
+  end if;
+  
+  g := f02^-1 * g0 * f01;
+  assert IsIsometry (T1, T2, g);
+		
+return true, g;
+		
+end intrinsic;
+
 
 intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt) 
    -> BoolElt, GrpMatElt, GrpMatElt
