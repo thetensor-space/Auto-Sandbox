@@ -81,6 +81,8 @@
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
 
+__EXHAUSTIVE_SEARCH_LIMIT := 10^6;
+
 // NEEDS TO BE EXPANDED ... JUST SYMMETRIC AND ALTERNATING RIGHT NOW
 intrinsic IsHermitianBimap (T::TenSpcElt) -> BoolElt
   {Decides if the given tensor is an Hermitian bimap.}
@@ -536,6 +538,41 @@ end intrinsic;
 /* ----------------------------------------------------------------------------- */
 
 
+/* ---------------------------------------------------------------- */
+// this is a temporary intrinsic for what will become an action (exponent)
+intrinsic IsotopicImage (T::TenSpcElt, L::Tup) -> TenSpcElt
+  {Computes the image of a tensor under the action of a triple of matrices.}
+  
+  require (#L eq 3) and forall { i : i in [1..3] | Type (L[i]) eq GrpMatElt } :
+     "Argument 3 must be a triple of matrix group elements.";
+  
+  D := Domain (T);
+  C := Codomain (T);
+  
+  require (#D eq 2) : 
+     "Argument 1 must be a bimap.";
+     
+  c := Dimension (D[1]);
+  d := Dimension (D[2]);
+  e := Dimension (C);
+        
+  require [ Degree (Parent (L[i])) : i in [1,2,3] ] eq [c,d,e] :
+     "Degrees of operators are incompatible with domain and codomain of bimaps.";
+  
+  f := L[1];
+  g := L[2];
+  hinv := L[3];
+  h := hinv^-1;
+  S := SystemOfForms (T);
+  Sfg := [ f * S[i] * Transpose (g) : i in [1..#S] ];
+  Sfgh := [ &+[ h[i][j] * Sfg[i] : i in [1..#Sfg] ] : j in [1..Ncols (h)] ];
+  Tfgh := Tensor (Sfgh, 2, 1);
+
+return Tfgh;
+  
+end intrinsic;
+
+
           /* ----- verification functions ----- */
           
 
@@ -643,7 +680,7 @@ end intrinsic;
 
 
 
-          /* ----- induce and lift functions ----- */
+             /* ----- induce functions ----- */
           
           
 intrinsic InduceIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup) 
@@ -721,35 +758,7 @@ end intrinsic;
 
 
 
-intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::GrpMatElt) 
-   -> BoolElt, GrpMatElt
-
-  {Decides if the given matrix is the outer part of a pseudo-isometry between 
-   given tensors and, if so, finds a suitable lift.}
-  
-  require IsBalancedBimap (T1) : 
-		"First argument is not a balanced bimap.";
-		
-  require IsBalancedBimap (T2) : 
-		"Second argument is not a balanced bimap.";
-        
-  require Degree (Parent (h)) eq Dimension (Codomain (T2)) :
-        "Argument 3 has incompatible degree with tensor codomain.";
-  
-  S2 := SystemOfForms (T2);
-  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
-  T2h := Tensor (S2h, 2, 1);
-
-return IsIsometric (T1, T2h);
-
-end intrinsic;
-
-
-/* ---------------------------------------------------------------- */
-/* This is the analogue of IsIsometric above. It allows us to test  */
-/* if a given outer map can be lifted to an isotopism.              */
-/* NOTE: the independence of actions makes this much easier.        */
-/* ---------------------------------------------------------------- */
+       /* --------------- test functions -------------- */
 
 
 intrinsic IsIsometric (T1::TenSpcElt, T2::TenSpcElt) -> BoolElt, GrpMatElt
@@ -850,7 +859,33 @@ return true, f, g;
    
 end intrinsic;
 
-/* ---------------------------------------------------------------- */
+
+
+     /* ---------------- lift functions ------------------ */
+
+
+intrinsic LiftPseudoIsometry (T1::TenSpcElt, T2::TenSpcElt, h::GrpMatElt) 
+   -> BoolElt, GrpMatElt
+
+  {Decides if the given matrix is the outer part of a pseudo-isometry between 
+   given tensors and, if so, finds a suitable lift.}
+  
+  require IsBalancedBimap (T1) : 
+		"First argument is not a balanced bimap.";
+		
+  require IsBalancedBimap (T2) : 
+		"Second argument is not a balanced bimap.";
+        
+  require Degree (Parent (h)) eq Dimension (Codomain (T2)) :
+        "Argument 3 has incompatible degree with tensor codomain.";
+  
+  S2 := SystemOfForms (T2);
+  S2h := [ &+[ h[i][j] * S2[i] : i in [1..#S2] ] : j in [1..Ncols (h)] ];
+  T2h := Tensor (S2h, 2, 1);
+
+return IsIsometric (T1, T2h);
+
+end intrinsic;
 
 
 intrinsic LiftIsotopism (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx) 
@@ -866,38 +901,154 @@ intrinsic LiftIsotopism (T1::TenSpcElt, T2::TenSpcElt, h::Mtrx)
 return IsPrincipallyIsotopic (T1, T2h);
 
 end intrinsic;
-   
-/* ---------------------------------------------------------------- */
-// this is a temporary intrinsic for what will become an action (exponent)
-intrinsic IsotopicImage (T::TenSpcElt, L::Tup) -> TenSpcElt
-  {Computes the image of a tensor under the action of a triple of matrices.}
-  
-  require (#L eq 3) and forall { i : i in [1..3] | Type (L[i]) eq GrpMatElt } :
-     "Argument 3 must be a triple of matrix group elements.";
-  
-  D := Domain (T);
-  C := Codomain (T);
-  
-  require (#D eq 2) : 
-     "Argument 1 must be a bimap.";
-     
-  c := Dimension (D[1]);
-  d := Dimension (D[2]);
-  e := Dimension (C);
-        
-  require [ Degree (Parent (L[i])) : i in [1,2,3] ] eq [c,d,e] :
-     "Degrees of operators are incompatible with domain and codomain of bimaps.";
-  
-  f := L[1];
-  g := L[2];
-  hinv := L[3];
-  h := hinv^-1;
-  S := SystemOfForms (T);
-  Sfg := [ f * S[i] * Transpose (g) : i in [1..#S] ];
-  Sfgh := [ &+[ h[i][j] * Sfg[i] : i in [1..#Sfg] ] : j in [1..Ncols (h)] ];
-  Tfgh := Tensor (Sfgh, 2, 1);
 
-return Tfgh;
+
+
+      /* ------------- group constructors ----------------- */
+
+
+intrinsic PrincipalIsotopismGroup (T::TenSpcElt) -> GrpMat
+
+  {Compute the group of principal isotopisms of the given tensor.}
+  
+  c := Dimension (Domain (T)[1]);
+  d := Dimension (Domain (T)[2]);
+  e := Dimension (Codomain (T));
+  S := SystemOfForms (T);
+  
+  space := Adj2 (S, S);
+  
+  gens := [ ];
+  for i in [1..Ngens (space)] do
+      X, Y := __vector_to_matrix (space.i, c, d);
+      if __SANITY_CHECK then
+	  	   assert forall { i : i in [1..#S] | X * S[i] eq S[i] * Transpose (Y) };
+	  end if;
+      Append (~gens, DiagonalJoin (X, Transpose (Y)));
+  end for;
+  
+  A := sub < MatrixAlgebra (BaseRing (T), c + d) | gens >;
+  isit, U := UnitGroup (A);
+  assert isit;
+  gens := [ ];
+  for i in [1..Ngens (U)] do
+      f := GL (c, BaseRing (T))!ExtractBlock (U.i, 1, 1, c, c);
+      ginv := GL (d, BaseRing (T))!ExtractBlock (U.i, c+1, c+1, d, d);
+      g := Transpose (ginv^-1);
+      assert IsPrincipalIsotopism (T, T, <f,g>);
+      Append (~gens, DiagonalJoin (<f, g, Identity (GL (e, BaseRing (T)))>));
+  end for;
+  
+  PRIN := sub < GL (c + d + e, BaseRing (T)) | gens >;
+  
+return PRIN;
   
 end intrinsic;
+
+
+
+// very basic version: needs various enhancements a la pseudo-isometry
+// group construction above
+intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
+
+  {Compute the group of autotopisms of the given tensor.}
+  
+  c := Dimension (Domain (T)[1]);
+  d := Dimension (Domain (T)[2]);
+  e := Dimension (Codomain (T));
+  k := BaseRing (T);
+  
+  OVER := GL (e, k);   // this can be refined on input
+  UNDER := sub < GL (e, k) | Identity (GL (e, k)) >;   // possibly this can too
+  INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+  done := false;
+  gens := [ ];
+  
+  while (not done) do
+  
+      if (INDEX le __EXHAUSTIVE_SEARCH_LIMIT) then   // proceed exhaustively
+   
+"computing transversal for INDEX =", INDEX, "   ( |OVER| =", #OVER, "   |UNDER| =", #UNDER,")";          
+          tran, f := Transversal (OVER, UNDER);
+"done";
+          assert tran[1] eq Identity (OVER);
+          i := 1;
+          stop := false;
+          while (i lt #tran) and (not stop) do
+              i +:= 1;
+              // try to lift tran[i]
+              h := tran[i];
+              isit, f, g := LiftIsotopism (T, T, h);
+              if isit then
+                  assert IsIsotopism (T, T, <f, g, h>);
+                  stop := true;
+              end if;
+          end while;
+          
+          if stop then
+              Append (~gens, DiagonalJoin (<f, g, h>));
+              UNDER := sub < Generic (UNDER) | [ UNDER.i : i in [1..Ngens (UNDER)] ]
+                                               cat [ h ] >;
+              INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+          else
+              assert i eq #tran;
+              done := true;
+          end if;
+          
+      else   // try random process
+"searching at random for group elements that lift to isotopisms";       
+          i := 1;
+          stop := false;
+          while (i lt __EXHAUSTIVE_SEARCH_LIMIT) and (not stop) do
+              i +:= 1;
+if (i mod 10^4 eq 2) then "   i =", i; end if;
+              h := Random (OVER);
+              if not (h in UNDER) then
+                  isit, f, g := LiftIsotopism (T, T, h);
+                  if isit then
+                  "success!";
+                      assert IsIsotopism (T, T, <f, g, h>);
+                      stop := true;
+                  end if;
+              end if; 
+          end while;
+          
+          if stop then
+              Append (~gens, DiagonalJoin (<f, g, h>));
+              UNDER := sub < Generic (UNDER) | [ UNDER.i : i in [1..Ngens (UNDER)] ]
+                                               cat [ h ] >;
+              INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+          else
+              assert i eq __EXHAUSTIVE_SEARCH_LIMIT;
+              done := true;
+          end if;
+  
+      end if;
+      
+  end while;
+  
+  OUTER := UNDER;   // if we took deterministic route this will be accurate;
+                    // if we searched at random, OUTER could still be a subgroup
+                    // of the projection of the target gp of isotopisms on W.
+
+  // tack on generators for the principal isotopism group.
+  PRIN := PrincipalIsotopismGroup (T);
+  
+  gens cat:= [ PRIN.i : i in [1..Ngens (PRIN)] ];  
+  H := sub < GL (c + d + e, k) | gens >;
+
+  //sanity checks
+  for i in [1..Ngens (H)] do
+      assert IsIsotopism (T, T, <GL (c, k)!ExtractBlock (H.i, 1, 1, c, c), 
+                           GL (d, k)!ExtractBlock (H.i, c+1, c+1, d, d),
+                           GL (e, k)!ExtractBlock (H.i, c+d+1, c+d+1, e, e)>);
+  end for;
+  
+  assert LMGOrder (PRIN) * LMGOrder (OUTER) eq LMGOrder (H);
+  
+return H;
+
+end intrinsic;
+   
+
 
