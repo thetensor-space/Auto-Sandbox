@@ -160,6 +160,7 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
   end for;
   md := Minimum (dims);
   assert exists (s){ i : i in [1..#dims] | dims[i] eq md };
+"located optimal product to initialize";
   
   // initialize using the autotopism group of this product
   assert exists (k){ l : l in [1..#products] | products[l][1] eq <[1],[s]> };
@@ -167,12 +168,14 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
   dimU := Dimension (Domain (B)[1]);
   dimV := Dimension (Domain (B)[2]);
   dimW := Dimension (Codomain (B));
-  U := AutotopismGroup (B);
-  L := sub < Generic (U) | Identity (Generic (U)) >;
-  T := [ Identity (Generic (U)) ];
+"computing initial autotopism group ...";
+  OVER := AutotopismGroup (B);
+"... done";
+  UNDER := sub < Generic (OVER) | Identity (Generic (OVER)) >;
+  T := [ Identity (Generic (OVER)) ];
   G := sub < GL (d, BaseRing (L)) | Identity (GL (d, BaseRing (L))) >;
   
-  INDEX := LMGOrder (U) div LMGOrder (L);
+  INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
   done := false;
   
   // search exhaustively through U
@@ -180,10 +183,10 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
   
   // probably insert some exhaustive search limit beyond which we proceed at random
    
-"computing transversal for INDEX =", INDEX, "   ( |U| =", #U, "   |L| =", #L,")";          
-          tran, f := Transversal (U, L);
-"done";
-          assert tran[1] eq Identity (U);
+"     computing transversal for INDEX =", INDEX, 
+      "   ( |OVER| =", #OVER, "   |UNDER| =", #UNDER,")";          
+          tran, f := Transversal (OVER, UNDER);
+          assert tran[1] eq Identity (OVER);
           i := 1;
           stop := false;
           while (i lt #tran) and (not stop) do
@@ -200,7 +203,9 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
                   maps := < maps[i] : i in [1..#maps] >;
                   G := sub < Generic (G) | [ G.i : i in [1..Ngens (G)] ] cat
                                      [ Generic (G)!DiagonalJoin (maps) ] >;
-                  L := sub < Generic (L) | [ L.j : j in [1..Ngens (L)] ] cat [ Phi ] >;
+                  UNDER := sub < Generic (UNDER) | 
+                                  [ UNDER.j : j in [1..Ngens (UNDER)] ] cat [ Phi ] >;
+                  INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
                   stop := true;
               end if;
           end while;
@@ -239,6 +244,18 @@ return true, _;
 
 end intrinsic;
 */
+
+
+// set up Lie algebra for testing ...
+d := 5;
+p := 3;
+S := ClassicalSylow (GL (d, p), 3);
+G := PCPresentation (UnipotentMatrixGroup (S));
+F := pCentralFilter (G);
+L := LieAlgebra (F);
+
+
+
 
 /*
 // old exhaustive search ...

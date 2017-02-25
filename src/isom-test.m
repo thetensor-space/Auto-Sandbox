@@ -968,9 +968,9 @@ intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
   
       if (INDEX le __EXHAUSTIVE_SEARCH_LIMIT) then   // proceed exhaustively
    
-"computing transversal for INDEX =", INDEX, "   ( |OVER| =", #OVER, "   |UNDER| =", #UNDER,")";          
+//"computing transversal for INDEX =", INDEX, "   ( |OVER| =", #OVER, "   |UNDER| =", #UNDER,")";          
           tran, f := Transversal (OVER, UNDER);
-"done";
+//"done";
           assert tran[1] eq Identity (OVER);
           i := 1;
           stop := false;
