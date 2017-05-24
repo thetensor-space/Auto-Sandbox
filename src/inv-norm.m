@@ -40,7 +40,8 @@ __InverseNormSimple := function (STAN, s)
          ss := K!(s[1][1]);
          isit, aa := IsSquare (ss);
          if not isit then
-           "(orthogonal degree 1: entry has no square root in ground field)";
+           //"(orthogonal degree 1: entry has no square root in ground field)";
+           return false, _;
          end if;
          return true, STAN![aa];
       end if;
