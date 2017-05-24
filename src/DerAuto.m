@@ -148,8 +148,8 @@ vprint Autotopism, 2 : "---------------------";
   
   // compute Levi complement of DerT
   isit, Levi := HasLeviSubalgebra (DerT); 
+  if isit and Dimension (Levi) gt 0 then
 vprint Autotopism, 2 : "[INFO]   Dim(Levi) =", Dimension (Levi); 
-  if Dimension (Levi) gt 0 then
     
 
   LeviWgens := [ Matrix (Levi.i @ phi) : i in [1..Ngens (Levi)] ];
@@ -299,6 +299,7 @@ vprint Autotopism, 1 : "  [WARNING]   LW acts reducibly on W";
          Do this up top, actually.
       */  
 try
+vprint Autotopism, 1 : "\t[INFO] Attempting to compute a Chevalley Basis";
       X, Y, H := ChevalleyBasis (LW);
 catch err
 	vprint Autotopism, 1 : "  [WARNING]   Magma did not recognize the simple Lie algebra";
