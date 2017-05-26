@@ -159,6 +159,7 @@ end function;
   We will look into upgrading this function. 
 */
 ElementaryPointPartition := function (points : FullPartition := true)
+
   pre_points := [ Nullspace (Matrix (points[i].1)) : i in [1..#points] ];
   dims := { Dimension (pre_points[i]) : i in [1..#pre_points] };
   if #dims eq 1 then
@@ -166,9 +167,12 @@ ElementaryPointPartition := function (points : FullPartition := true)
   else  
     partition := [ ];
     for r in dims do
-      Append (~partition, { i : i in [1..#points] | Dimension (pre_points[i]) eq r });
+      Pr := { i : i in [1..#points] | Dimension (pre_points[i]) eq r };
+      Append (~partition, Pr);
+      "   there are", #Pr, "points of co-rank", r;
     end for;
   end if;
+  
   // use sums of pre_points to (further) refine partition
   if FullPartition then
     lines := { E + F : E in pre_points , F in pre_points | E ne F };
@@ -192,7 +196,9 @@ ElementaryPointPartition := function (points : FullPartition := true)
     end for;
     partition := refined_partition;
   end if;
+  
 return partition;
+
 end function;
 
 
@@ -292,9 +298,9 @@ end function;
 */
 
 InvariantSpaces_Special := function (B : 
-                     LineSigFn := SlopeSignature, 
+                     LineSigFn := Genus2Sig, 
                      LineSigEqFn := BasicSigEq,
-                     FullPartition := true,
+                     FullPartition := false,
                      FullGraph := false
                                )
 
@@ -309,6 +315,8 @@ InvariantSpaces_Special := function (B :
       return bases;
   end if;
   */
+  
+  "using", LineSigFn;
 
   S := SystemOfForms (B);
   MS := KMatrixSpace( BaseRing(B), Nrows(S[1]), Ncols(S[1]));
@@ -321,7 +329,8 @@ InvariantSpaces_Special := function (B :
 //  "#lines =", #lines;
   
   point_part := ElementaryPointPartition (points : FullPartition := FullPartition);
-//  "elementary point partition has", #point_part, "parts";
+//  "elementary point partition:", [#P : P in point_part];
+  "elementary point partition has", #point_part, "parts";
   
   if #point_part gt 1 then    // replace with smaller group
       Hp := Stabiliser (Hp, point_part);
@@ -331,7 +340,7 @@ InvariantSpaces_Special := function (B :
   // compute orbits under Hp and see if this gives a break
   orbits := Orbits (Hp);
   point_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
-//  "after computing orbits, point partition has", #point_part, "parts";
+  "after computing orbits, point partition has", #point_part, "parts";
   
   spaces := __proper_subspaces (points, point_part, #S);
   if (#spaces gt 0) and (not FullGraph) then
@@ -341,11 +350,11 @@ InvariantSpaces_Special := function (B :
   // compute orbits under Hl and use them as the basic line partition
   orbits := Orbits (Hl);
   line_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
-//  "first line partition has", #line_part, "parts";
+  "first line partition has", #line_part, "parts";
   
   // refine the line partition
   ref_line_part := RefineLinePartition (line_part, lines, LineSigFn, LineSigEqFn);
-//  "refined line partition has", #ref_line_part, "parts";
+  "refined line partition has", #ref_line_part, "parts";
   if #ref_line_part gt #line_part then   // cut down group and recompute orbits
     line_part := ref_line_part;
     Hl := Stabiliser (Hl, line_part);
@@ -381,7 +390,7 @@ InvariantSpaces_General := function (B)
 //  "#lines =", #lines;
   
   point_part := ElementaryPointPartition (points);
-	vprint Autotopism, 1 : "elementary point partition has", #point_part, "parts";
+	vprint Autotopism, 1 : "elementary point partition:", [#P : P in point_part];
   
   if #point_part gt 1 then    // replace with smaller group
       Hp := Stabiliser (Hp, point_part);
@@ -432,8 +441,8 @@ end function;
 
 */
 
-intrinsic CharacteristicSubgroups(G::Grp : 
-	LineSigFn := SlopeSignature, 
+intrinsic CharacteristicSubgroups(B::TenSpcElt : 
+	LineSigFn := Genus2Sig, 
 	LineSigEqFn := BasicSigEq,
 	FullPartition := true,
 	FullGraph := true
@@ -452,21 +461,24 @@ intrinsic CharacteristicSubgroups(G::Grp :
   end if;
   */
 
-  B := pCentralTensor(G, 1, 1);
+//  B := pCentralTensor(G, 1, 1);
   I, P := InvariantSpaces_Special (B : LineSigFn := LineSigFn,
                                     LineSigEqFn := BasicSigEq,
                                     FullPartition := FullPartition,
                                     FullGraph := FullGraph);
                                     
+return I;
+ 
+/*
+// commented out by PAB on 5/13/2017 ... testing examples in paper                                    
   S := AsMatrices(B,2,1);
   MS := KMatrixSpace(BaseRing(B), Nrows(S[1]), Ncols(S[1]));
   U := KMatrixSpaceWithBasis ([MS!T : T in S]);
-
   if #I gt 0 then
       return [ __subspace_to_subgroup (B, U, X) : X in I ], I, P;
-  end if;
-  
+  end if;  
 return [ ], _, P;
+*/
     
 end intrinsic;
 

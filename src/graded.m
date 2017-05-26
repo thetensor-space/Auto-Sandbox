@@ -76,7 +76,11 @@ __Induce_Map := function (B, pair)
       // compute the matrix induced on W by <f,g> relative to the new basis
       hh := Matrix ([ < L[k][1] * f , L[k][2] * g > @ B : k in [1..#L] ]);
       // write it relative to the given basis
-      h := COB^-1 * hh * COB;
+      h := GL (Nrows (hh), BaseRing (W))!(COB^-1 * hh * COB);
+      
+// NEED A SANITY CHECK IN HERE
+assert IsIsotopism (B, B, <f,g,h>);
+      
       return true, GL (Dimension (W), BaseRing (W))!h;
       
   else
@@ -135,6 +139,8 @@ __Extend := function  (maps, prods)
           
   end while;
   
+  // NEED A SANITY CHECK IN HERE
+  
 return true, maps;
 
 end function;
@@ -142,14 +148,18 @@ end function;
 
 // no function of this name currently in the distributed version of Magma. 
 
-intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
+intrinsic AutomorphismGroup (L::AlgLie :
+                                specify_s := 0
+                            ) -> GrpMat
 
   {Compute the group of (graded) automorphisms of the Lie algebra L.}
   
   components := HomogeneousComponents (L);
+"dims of homogeneous components:", [ Dimension (X) : X in components ];
   products := GradedProducts (L);
   d := &+ [ Dimension (U) : U in components ];
   
+if specify_s eq 0 then
   // find best s
   dims := [ ];
   for i in [1..#components-1] do
@@ -161,15 +171,25 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
   md := Minimum (dims);
   assert exists (s){ i : i in [1..#dims] | dims[i] eq md };
 "located optimal product to initialize";
+else
+  s := specify_s;
+end if;
   
   // initialize using the autotopism group of this product
   assert exists (k){ l : l in [1..#products] | products[l][1] eq <[1],[s]> };
   B := products[k][2];
+"s =", s;
+"product is", B;
   dimU := Dimension (Domain (B)[1]);
   dimV := Dimension (Domain (B)[2]);
   dimW := Dimension (Codomain (B));
 "computing initial autotopism group ...";
+/* THIS IS WHAT WE SHOULD DO ... NEED TO MAKE OUTPUT OF THESE FUNCTIONS CONSISTENT */
+//if s eq 1 then
+//OVER := PseudoIsometryGroup (B);
+//else
   OVER := AutotopismGroup (B);
+//end if;
 "... done";
   UNDER := sub < Generic (OVER) | Identity (Generic (OVER)) >;
   T := [ Identity (Generic (OVER)) ];
@@ -184,13 +204,14 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
   // probably insert some exhaustive search limit beyond which we proceed at random
    
 "     computing transversal for INDEX =", INDEX, 
-      "   ( |OVER| =", #OVER, "   |UNDER| =", #UNDER,")";          
+      "   ( |OVER| =", #OVER, " |UNDER| =", #UNDER,")";          
           tran, f := Transversal (OVER, UNDER);
           assert tran[1] eq Identity (OVER);
           i := 1;
           stop := false;
           while (i lt #tran) and (not stop) do
               i +:= 1;
+//if (i mod 500 eq 0) then "       i =", i; end if;
               Phi := tran[i];
               // see if Phi extends ...
               maps := [* 0 : i in [1..#components] *];
@@ -217,14 +238,20 @@ intrinsic AutomorphismGroup (L::AlgLie) -> GrpMat
                
   end while;
   
+  "|G| =", LMGOrder (G);
+  
   // check that we have graded automorphisms of L (is it as easy as this)?
-  assert forall { i : i in [1..Ngens (G)] |
+  
+
+  check := forall { i : i in [1..Ngens (G)] |
                   forall { s : s in [1..Ngens (L)-1] |
                      forall { t : t in [s+1..Ngens (L)] |
                         (L.s * G.i) * (L.t * G.i) eq (L.s * L.t) * G.i
                             }
                           }
                 };
+  
+"graded automorphisms?", check;
   
 return G;
 
@@ -244,16 +271,6 @@ return true, _;
 
 end intrinsic;
 */
-
-
-// set up Lie algebra for testing ...
-d := 5;
-p := 3;
-S := ClassicalSylow (GL (d, p), 3);
-G := PCPresentation (UnipotentMatrixGroup (S));
-F := pCentralFilter (G);
-L := LieAlgebra (F);
-
 
 
 
