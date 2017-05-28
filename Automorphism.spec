@@ -11,6 +11,7 @@
   	exponentiate.m
   	Util.m
   	char-spaces.m
+        graded.m
   	pgroups
 		{
    		approximate.m

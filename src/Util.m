@@ -94,7 +94,7 @@ end function;
 
 
 // useful matrix function
-vector_to_block_diagonal_matrix := function (v, degrees)
+__vector_to_block_diagonal_matrix := function (v, degrees)
      F := BaseRing (v);
      sqdegs := [ n^2 : n in degrees ];
      assert Degree (v) eq &+ sqdegs;
@@ -224,7 +224,7 @@ __Adjoint_Solve := function (S, T)
   
   mat := Transpose (Matrix (mat));
 	sol := Nullspace (mat);
-	basis := [ vector_to_block_diagonal_matrix (sol.i, [d, d]) :
+	basis := [ __vector_to_block_diagonal_matrix (sol.i, [d, d]) :
 					   i in [1..Ngens (sol)] ];
 	MS := KMatrixSpace (F, 2*d, 2*d);
      
