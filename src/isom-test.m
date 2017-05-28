@@ -81,7 +81,7 @@
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
 
-__EXHAUSTIVE_SEARCH_LIMIT := 10^6;
+__EXHAUSTIVE_SEARCH_LIMIT := 10^7;
 
 // NEEDS TO BE EXPANDED ... JUST SYMMETRIC AND ALTERNATING RIGHT NOW
 intrinsic IsHermitianBimap (T::TenSpcElt) -> BoolElt
@@ -961,8 +961,17 @@ intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
   OVER := GL (e, k);   // this can be refined on input
   UNDER := sub < GL (e, k) | Identity (GL (e, k)) >;   // possibly this can too
   INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+"INDEX =", INDEX, 
+"   (", Ceiling (Log (2, INDEX)),"bits )";
+"LIMIT =", __EXHAUSTIVE_SEARCH_LIMIT;
+
   done := false;
   gens := [ ];
+  
+  // find generators for the principal isotopism group.
+  PRIN := PrincipalIsotopismGroup (T);
+"order of principal isotopism group of T:", LMGOrder (PRIN), 
+"   (", Ceiling (Log (2, LMGOrder (PRIN))),"bits )";
   
   while (not done) do
   
@@ -1030,9 +1039,6 @@ if (i mod 10^4 eq 2) then "   i =", i; end if;
   OUTER := UNDER;   // if we took deterministic route this will be accurate;
                     // if we searched at random, OUTER could still be a subgroup
                     // of the projection of the target gp of isotopisms on W.
-
-  // tack on generators for the principal isotopism group.
-  PRIN := PrincipalIsotopismGroup (T);
   
   gens cat:= [ PRIN.i : i in [1..Ngens (PRIN)] ];  
   H := sub < GL (c + d + e, k) | gens >;

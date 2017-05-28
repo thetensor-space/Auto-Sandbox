@@ -1,5 +1,6 @@
 /* code for graded algebra isomorphism */
 
+__EXHAUSTIVE_SEARCH_LIMIT := 10^7;
 
 /* 
   Given a bimap B : U x V >--> W, compute the algebra consisting of
@@ -159,21 +160,21 @@ intrinsic AutomorphismGroup (L::AlgLie :
   products := GradedProducts (L);
   d := &+ [ Dimension (U) : U in components ];
   
-if specify_s eq 0 then
-  // find best s
-  dims := [ ];
-  for i in [1..#components-1] do
-      assert exists (k){ l : l in [1..#products] | products[l][1] eq <[1],[i]> };
-      B := products[k][2];
-      // rough count for the time being ...
-      Append (~dims, Dimension (__Compute_LMR (B)));
-  end for;
-  md := Minimum (dims);
-  assert exists (s){ i : i in [1..#dims] | dims[i] eq md };
-"located optimal product to initialize";
-else
-  s := specify_s;
-end if;
+  if specify_s eq 0 then
+      // find best s
+      dims := [ ];
+      for i in [1..#components-1] do
+          assert exists (k){ l : l in [1..#products] | products[l][1] eq <[1],[i]> };
+          B := products[k][2];
+          // rough count for the time being ...
+          Append (~dims, Dimension (__Compute_LMR (B)));
+      end for;
+      md := Minimum (dims);
+      assert exists (s){ i : i in [1..#dims] | dims[i] eq md };
+      "located optimal product to initialize";
+  else
+      s := specify_s;
+  end if;
   
   // initialize using the autotopism group of this product
   assert exists (k){ l : l in [1..#products] | products[l][1] eq <[1],[s]> };
@@ -184,52 +185,56 @@ end if;
   dimV := Dimension (Domain (B)[2]);
   dimW := Dimension (Codomain (B));
 "computing initial autotopism group ...";
+
 /* THIS IS WHAT WE SHOULD DO ... NEED TO MAKE OUTPUT OF THESE FUNCTIONS CONSISTENT */
 //if s eq 1 then
 //OVER := PseudoIsometryGroup (B);
 //else
+
   OVER := AutotopismGroup (B);
+
 //end if;
+
 "... done";
   UNDER := sub < Generic (OVER) | Identity (Generic (OVER)) >;
   T := [ Identity (Generic (OVER)) ];
   G := sub < GL (d, BaseRing (L)) | Identity (GL (d, BaseRing (L))) >;
   
+  // search exhaustively through OVER / UNDER
   INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+  "     computing transversal for INDEX =", INDEX, 
+  "   (", Ceiling (Log (2, INDEX)),"bits )";
+  if INDEX gt __EXHAUSTIVE_SEARCH_LIMIT then
+  "failed because exhaustive search is too large";
+      return false;
+  end if;
+  
   done := false;
-  
-  // search exhaustively through U
-  while (not done) do
-  
-  // probably insert some exhaustive search limit beyond which we proceed at random
-   
-"     computing transversal for INDEX =", INDEX, 
-      "   ( |OVER| =", #OVER, " |UNDER| =", #UNDER,")";          
-          tran, f := Transversal (OVER, UNDER);
-          assert tran[1] eq Identity (OVER);
-          i := 1;
-          stop := false;
-          while (i lt #tran) and (not stop) do
-              i +:= 1;
-//if (i mod 500 eq 0) then "       i =", i; end if;
-              Phi := tran[i];
-              // see if Phi extends ...
-              maps := [* 0 : i in [1..#components] *];
-              maps[1] := GL (dimU, BaseRing (L))!ExtractBlock (Phi, 1, 1, dimU, dimU);
-              maps[s] := GL (dimV, BaseRing (L))!ExtractBlock (Phi, dimU+1, dimU+1, dimV, dimV);
-              maps[s+1] := GL (dimW, BaseRing (L))!ExtractBlock (Phi, dimU+dimV+1, 
+  while (not done) do         
+      tran, f := Transversal (OVER, UNDER);
+      assert tran[1] eq Identity (OVER);
+      i := 1;
+      stop := false;
+      while (i lt #tran) and (not stop) do
+        i +:= 1;
+        Phi := tran[i];
+        // see if Phi extends ...
+        maps := [* 0 : i in [1..#components] *];
+        maps[1] := GL (dimU, BaseRing (L))!ExtractBlock (Phi, 1, 1, dimU, dimU);
+        maps[s] := GL (dimV, BaseRing (L))!ExtractBlock (Phi, dimU+1, dimU+1, dimV, dimV);
+        maps[s+1] := GL (dimW, BaseRing (L))!ExtractBlock (Phi, dimU+dimV+1, 
                                                      dimU+dimV+1, dimW, dimW);
-              flag, maps := __Extend (maps, products);
-              if flag then
-                  maps := < maps[i] : i in [1..#maps] >;
-                  G := sub < Generic (G) | [ G.i : i in [1..Ngens (G)] ] cat
+        flag, maps := __Extend (maps, products);
+        if flag then
+            maps := < maps[i] : i in [1..#maps] >;
+            G := sub < Generic (G) | [ G.i : i in [1..Ngens (G)] ] cat
                                      [ Generic (G)!DiagonalJoin (maps) ] >;
-                  UNDER := sub < Generic (UNDER) | 
+            UNDER := sub < Generic (UNDER) | 
                                   [ UNDER.j : j in [1..Ngens (UNDER)] ] cat [ Phi ] >;
-                  INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
-                  stop := true;
-              end if;
-          end while;
+            INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
+            stop := true;
+        end if;
+      end while;
           
           if not stop then
               assert i eq #tran;
@@ -273,30 +278,6 @@ end intrinsic;
 */
 
 
-
-/*
-// old exhaustive search ...
-  while (LMGOrder (U) div LMGOrder (L) gt #T) do
-      // select a new element 
-      assert exists (Phi){ u : u in U | not exists { t : t in T |
-                                         u in { l * t : l in L } } };
-      maps := [* 0 : i in [1..#components] *];
-      maps[1] := GL (dimU, BaseRing (L))!ExtractBlock (Phi, 1, 1, dimU, dimU);
-      maps[s] := GL (dimV, BaseRing (L))!ExtractBlock (Phi, dimU+1, dimU+1, dimV, dimV);
-      maps[s+1] := GL (dimW, BaseRing (L))!ExtractBlock (Phi, dimU+dimV+1, 
-                                                     dimU+dimV+1, dimW, dimW);
-      // try to extend
-      flag, maps := __Extend (maps, products);
-      if flag then   // add the generator to L and G
-          maps := < maps[i] : i in [1..#maps] >;
-          G := sub < Generic (G) | [ G.i : i in [1..Ngens (G)] ] cat
-                                     [ Generic (G)!DiagonalJoin (maps) ] >;
-          L := sub < Generic (L) | [ L.j : j in [1..Ngens (L)] ] cat [ Phi ] >;
-      else   // augment the transversal
-          Append (~T, Phi);
-      end if;
-  end while;
-*/
 
 
 
