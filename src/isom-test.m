@@ -593,7 +593,6 @@ intrinsic IsIsotopism (T1::TenSpcElt, T2::TenSpcElt, L::Tup) -> BoolElt
   D1 := Domain (T1);
   D2 := Domain (T2);
   
-error "here!!!";  
   require (#D1 eq 2) and (#D2 eq 2) : 
      "Arguments 1 and 2 must be bimaps.";
      
