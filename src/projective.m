@@ -158,7 +158,7 @@ end function;
   
   We will look into upgrading this function. 
 */
-ElementaryPointPartition := function (points : FullPartition := true)
+ElementaryPointPartition := function (points : FullPartition := false)
 
   pre_points := [ Nullspace (Matrix (points[i].1)) : i in [1..#points] ];
   dims := { Dimension (pre_points[i]) : i in [1..#pre_points] };
@@ -169,7 +169,6 @@ ElementaryPointPartition := function (points : FullPartition := true)
     for r in dims do
       Pr := { i : i in [1..#points] | Dimension (pre_points[i]) eq r };
       Append (~partition, Pr);
-      "   there are", #Pr, "points of co-rank", r;
     end for;
   end if;
   
@@ -304,26 +303,18 @@ InvariantSpaces_Special := function (B :
                      FullGraph := false
                                )
 
-  /*
-  Plug in when Blackburn has been adapted.
- 
-  S, points, part := MyBlackburn (G);
-  
-  // check to see if the Blackburn partition already gives char. ideal
-  bases := __proper_subspaces (points, part, #S);
-  if #bases gt 0 then
-      return bases;
-  end if;
-  */
-  
-  "using", LineSigFn;
-
   S := SystemOfForms (B);
+"dim(W) =", Dimension (Codomain (B));
   MS := KMatrixSpace( BaseRing(B), Nrows(S[1]), Ncols(S[1]));
   U := KMatrixSpaceWithBasis ([MS!T : T in S]);
   
   // find the groups acting on points and lines
   Hp, Hl, f, points, lines, tau := ActionOnProjectiveSpace (S);
+"|points| =", #points;
+"|lines| =", #lines;
+"|Hp| =", #Hp;
+"|Hl| =", #Hl;
+"------------";
 
 //  "#points =", #points;
 //  "#lines =", #lines;
@@ -336,6 +327,9 @@ InvariantSpaces_Special := function (B :
       Hp := Stabiliser (Hp, point_part);
       Hl := Hp @ f;
   end if;
+"|Hp| =", #Hp;
+"|Hl| =", #Hl;
+"--------------";
   
   // compute orbits under Hp and see if this gives a break
   orbits := Orbits (Hp);
@@ -351,6 +345,10 @@ InvariantSpaces_Special := function (B :
   orbits := Orbits (Hl);
   line_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
   "first line partition has", #line_part, "parts";
+Hl := Stabiliser (Hl, line_part);
+Hp := Hl @@ f;
+"|Hp| =", #Hp;
+"|Hl| =", #Hl;
   
   // refine the line partition
   ref_line_part := RefineLinePartition (line_part, lines, LineSigFn, LineSigEqFn);
@@ -359,6 +357,8 @@ InvariantSpaces_Special := function (B :
     line_part := ref_line_part;
     Hl := Stabiliser (Hl, line_part);
     Hp := Hl @@ f;
+"|Hp| =", #Hp;
+"|Hl| =", #Hl;
     orbits := Orbits (Hp);
     point_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
 //    "resulting point partition has", #point_part, "parts";
@@ -375,97 +375,21 @@ end function;
 
 
 
-InvariantSpaces_General := function (B)
 
-  LineSigFn := SlopeSignature;
-  LineSigEqFn := BasicSigEq;
-
-  S := SystemOfForms (B);
-  MS := KMatrixSpace( BaseRing(B), Nrows(S[1]), Ncols(S[1]));
-  U := KMatrixSpaceWithBasis ([MS!T : T in S]);
-  
-  // find the groups acting on points and lines
-  Hp, Hl, f, points, lines := ActionOnProjectiveSpace (S);
-//  "#points =", #points;
-//  "#lines =", #lines;
-  
-  point_part := ElementaryPointPartition (points);
-	vprint Autotopism, 1 : "elementary point partition:", [#P : P in point_part];
-  
-  if #point_part gt 1 then    // replace with smaller group
-      Hp := Stabiliser (Hp, point_part);
-      Hl := Hp @ f;
-  end if;
-  
-  // compute orbits under Hp and see if this gives a break
-  orbits := Orbits (Hp);
-  point_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
-  	vprint Autotopism, 1 : "after computing orbits, point partition has", #point_part, "parts";
-  
-  spaces := __proper_subspaces (points, point_part, #S);
-  if #spaces gt 0 then
-//      return [ __subspace_to_subgroup (B, U, X) : X in spaces ];
-return spaces;
-  end if;
-  
-  // compute orbits under Hl and use them as the basic line partition
-  orbits := Orbits (Hl);
-  line_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
-  	vprint Autotopism, 1 : "first line partition has", #line_part, "parts";
-  
-  // refine the line partition
-  ref_line_part := RefineLinePartition (line_part, lines, LineSigFn, LineSigEqFn);
-  	vprint Autotopism, 1 : "refined line partition has", #ref_line_part, "parts";
-  if #ref_line_part gt #line_part then   // cut down group and recompute orbits
-    line_part := ref_line_part;
-    Hl := Stabiliser (Hl, line_part);
-    Hp := Hl @@ f;
-    orbits := Orbits (Hp);
-    point_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
-    	vprint Autotopism, 1 : "resulting point partition has", #point_part, "parts";
-    spaces := __proper_subspaces (points, point_part, #S);
-    if #spaces gt 0 then
-      return spaces;
-    end if;
-    
-  end if;
-  
-return [ ];
-
-end function;
-
-
-/*
-
-
-
-*/
-
-intrinsic CharacteristicSubgroups(B::TenSpcElt : 
-	LineSigFn := Genus2Sig, 
-	LineSigEqFn := BasicSigEq,
-	FullPartition := true,
-	FullGraph := true
-) -> SeqEnum, SeqEnum, Grp
+intrinsic CharacteristicSubgroups (B::TenSpcElt : 
+	             LineSigFn := Genus2Sig, 
+	             LineSigEqFn := BasicSigEq,
+	             FullPartition := false,
+	             FullGraph := true
+                                  ) -> SeqEnum, SeqEnum, Grp
 {Locate characteristic subgroups and constrain the possible automorphisms.}
                                    
-  /*
-  Plug in when Blackburn has been adapted.
- 
-  S, points, part := MyBlackburn (G);
-  
-  // check to see if the Blackburn partition already gives char. ideal
-  bases := __proper_subspaces (points, part, #S);
-  if #bases gt 0 then
-      return bases;
-  end if;
-  */
-
-//  B := pCentralTensor(G, 1, 1);
   I, P := InvariantSpaces_Special (B : LineSigFn := LineSigFn,
                                     LineSigEqFn := BasicSigEq,
                                     FullPartition := FullPartition,
                                     FullGraph := FullGraph);
+
+"order of final group to list:", #P;
                                     
 return I;
  
@@ -516,10 +440,6 @@ intrinsic ActionOnCenter (T::TenSpcElt : LineLabel := "SlopeSignature",
 
 	 LineLabel2 :=  LineLabel eq "Genus2Sig" select Genus2Sig else SlopeSignature;
 	
-//  T, f, g, h := pCentralTensor (G, 1, 1);
-//	f :=  T`Coerce[1];
-//	g :=  T`Coerce[2];
-//	h :=  T`Coerce[3];
   DomT := Domain (T);
   assert #DomT eq 2;
   V := DomT[1];
@@ -544,7 +464,7 @@ intrinsic ActionOnCenter (T::TenSpcElt : LineLabel := "SlopeSignature",
   // find the groups acting on points and lines
   Hp, Hl, f, points, lines, tau := ActionOnProjectiveSpace (S);
   
-  // compute a first partition of points ... still need to add Blackburn labels
+  // compute a first partition of points
   point_part := ElementaryPointPartition (points : FullPartition := true);
 		vprint Autotopism, 1 : "|point_part| =", #point_part;
   
@@ -580,3 +500,74 @@ intrinsic ActionOnCenter (T::TenSpcElt : LineLabel := "SlopeSignature",
 return O;
 
 end intrinsic;
+
+
+
+/*
+  ADDED BY PAB ON 29 MAY, 2017
+  
+  Given T : V x V >--> W, use local invariants to return best 
+  possible overgroup of PseudoIsometryGroup(T) restricted to W.
+*/
+
+intrinsic ActionOnCodomain (T::TenSpcElt : 
+                                 LineLabel := "SlopeSignature",
+                                 FullPartition := false
+                            ) -> GrpMat
+                            
+  { Compute the best estimate, from local information, of the action of 
+    pseudo-isometry group of T : V x V >--> W acting on its codomain W. }
+
+  LineLabel2 :=  LineLabel eq "Genus2Sig" select Genus2Sig else SlopeSignature;
+	
+  K := BaseRing (T);	
+  assert #Domain (T) eq 2;
+  e := Dimension (Codomain (T));  
+  S := SystemOfForms (T);
+  assert #S eq e;
+  
+  // find the groups acting on points and lines
+  Hp, Hl, f, points, lines, tau := ActionOnProjectiveSpace (S);
+        vprint Autotopism, 1 : "|points| =", #points;
+        vprint Autotopism, 1 : "|lines| =", #lines;
+  
+  // compute a first partition of points
+  point_part := ElementaryPointPartition (points : FullPartition := true);
+		vprint Autotopism, 1 : "|point_part| =", #point_part;
+  
+  if #point_part gt 1 then    // replace Hp and Hl with smaller groups
+      Hp := Stabiliser (Hp, point_part);
+      Hl := Hp @ f;
+  end if;
+  
+  // compute orbits under Hl and use them as the basic line partition
+  orbits := Orbits (Hl);
+  line_part := [ { i : i in orbits[j] } : j in [1..#orbits] ];
+	vprint Autotopism, 1 : "|line_part| =", #line_part;
+  
+  // refine the line partition
+  ref_line_part := RefineLinePartition (line_part, lines, LineLabel2, BasicSigEq);
+		vprint Autotopism, 1 : "|ref_line_part| =", #ref_line_part;
+  if #ref_line_part gt #line_part then   // cut down group and recompute orbits
+    line_part := ref_line_part;
+    Hl := Stabiliser (Hl, line_part);
+    Hp := Hl @@ f;
+  end if;
+  
+  // lift to GL(e,k)
+  if #Hp gt 1 then
+    O := Hp @@ tau;
+  else
+    O := sub < GL (e, K) | Identity (GL (e, K)) >;
+  end if;
+  
+  // adjust the action
+  O := sub < Generic (O) | [ Transpose (O.i) : i in [1..Ngens (O)] ] >;
+
+return O;
+
+end intrinsic;
+
+
+
+
