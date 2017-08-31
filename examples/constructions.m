@@ -7,6 +7,14 @@ __pete_forms := function( bimap )
 	return [ MA!x : x in forms];
 end function;
 
+double_tensor := function( t )
+  forms := SystemOfForms(t);
+  MA := MatrixAlgebra(BaseRing(t),Nrows(forms[1])+Ncols(forms[1]));
+  L := [ InsertBlock(
+              InsertBlock(MA!0,f,1,Ncols(f)+1),
+              -1*Transpose(f),Nrows(f)+1,1) : f in forms];
+  return Tensor( L,2,1);
+end function;
 
 //AttachSpec( "../MultilinearAlgebra-current/Multi.spec" );
 //AttachSpec( "../Filters-current/Filters.spec" );
@@ -121,7 +129,7 @@ TwistedHeisenbergGroup := function( p, e  )
 		m := RandomAlbertSemifield( p, e );
 		C := Centroid(m);
 	end while;
-	return HeisenbergGroup(m);
+	return HeisenbergGroupPC(double_tensor(m));
 end function;
 
 Verardi1 := function( )
@@ -150,6 +158,6 @@ Verardi1 := function( )
 	print Dimension(DerivationAlgebra(m));
 	print Dimension(Centroid(m));
 	print Dimension(AdjointAlgebra(m));
-	return HeisenbergGroup(m), m;
+	return HeisenbergGroupPC(m), m;
 end function;
 
