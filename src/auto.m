@@ -33,7 +33,10 @@ __ReduceActionOnVW := function (G)
 
 
    F := FrattiniSubgroup (G);
-   T, f, g, h :=pCentralTensor (G);
+   T, maps :=pCentralTensor (G);
+   f := maps[1];
+   g := maps[2];
+   h := maps[3];
    W :=Codomain (T);
    I := [i: i in [1..#A] | A[i] subset F];
    S := [sub<W | [A[i].j @ h: j in [1..NPCgens (A[i])]]>: i in I];
@@ -100,7 +103,7 @@ intrinsic AutomorphismGroupByInvariants(
 	if e lt 3 then 
 			vprint Autotopism, 1 :
 			"Group is small genus, using small genus package.";
-			return PseudoIsometryGroupSG(T); 
+			return TGPseudoIsometryGroup(T); 
 	end if;
 
  	GV := GL(d,p);
