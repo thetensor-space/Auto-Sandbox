@@ -81,7 +81,7 @@
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
 
-__EXHAUSTIVE_SEARCH_LIMIT := 10^7;
+__EXHAUSTIVE_SEARCH_LIMIT := 10^8;
 
 // NEEDS TO BE EXPANDED ... JUST SYMMETRIC AND ALTERNATING RIGHT NOW
 intrinsic IsHermitianBimap (T::TenSpcElt) -> BoolElt
@@ -537,6 +537,8 @@ end intrinsic;
 /* --- James, I'm putting these additional functions here for the time being --- */
 /* ----------------------------------------------------------------------------- */
 
+// JAMES SAYS PUT in eMAG --- BUT IN SEPARATE FOLDERS & FILES, e.g. "test", "lift", etc
+
 
 /* ---------------------------------------------------------------- */
 // this is a temporary intrinsic for what will become an action (exponent)
@@ -769,8 +771,8 @@ intrinsic IsIsometric (T1::TenSpcElt, T2::TenSpcElt) -> BoolElt, GrpMatElt
   require IsHermitianBimap (T2) : 
 		"Second argument is not an Hermitian bimap.";
 		
-  f01, g01, T01 := __nondegenerate_tensor (T1);
-  f02, g02, T02 := __nondegenerate_tensor (T2);
+  f01, g01, T01 := __nondegenerate_tensor (T1); // EXISTS IN TENSOR PACKAGE
+  f02, g02, T02 := __nondegenerate_tensor (T2); // USE THAT INSTEAD
   assert g01 eq f01;
   assert g02 eq f02;
   
@@ -812,7 +814,7 @@ intrinsic IsPrincipallyIsotopic (T1::TenSpcElt, T2::TenSpcElt)
   S1 := SystemOfForms (T1);
   S2 := SystemOfForms (T2);
    
-  space := Adj2 (S1, S2);
+  space := Adj2 (S1, S2);  // MAKE INTRINSIC ... CHECK WITH JOSH
   
   if Dimension (space) eq 0 then return false, _, _; end if;
 

@@ -1,4 +1,4 @@
-
+// SHOULD BE IN STAR-ALGEBRA PACKAGE.
 
 import "GlobalVars.m" : __SANITY_CHECK;
 

@@ -1,28 +1,84 @@
-/* James' examples for foxing standard approaches */
+/* tests for graded algebra iso paper */
 
-p := 3; e := 5; 
-H := HeisenbergGroup (p, e);
+// parameters
+d := 10; p := 5; e := 5; g := 4; num := 10;
 
-SystemOfForms (pCentralBimap (H, 1, 1));
+// twisted Heisenberg quotient test
+twisted_heisenberg_test := function (p, e, g : SANITY := false, LIFT := true)
+  for i in [1..num] do
+  "performing trial i =", i, "out of", num, "for (p,e,g) =", [p,e,g];
+      H := TwistedHeisenbergGroup (p, e);
+      U := RandomQuoByGenus (H, g);
+      T := pCentralTensor (U);
+//   "tensor:", T;
+      O1, p1, l1, pi, lambda := ActionOnCodomain (T);
+   "we are labeling", pi, "points, and", lambda, "lines";
+   "using SLOPE, there are", p1, "point labels, and", l1, "line labels";
+      O2, p2, l2 := ActionOnCodomain (T : LineLabel := "Genus2Sig");
+   "using GENUS2, there are", p2, "point labels, and", l2, "line labels";
+   "using GENUS2, the working overgroup has order", #O2;
+      if LIFT then
+          PIO2 := [ ];
+          for h in O2 do
+              isit, x := LiftPseudoIsometry (T, T, h);
+              if isit then
+                  Append (~PIO2, h);
+              end if;
+          end for;
+          "of these elements,", #PIO2, "lift to pseudo-isometries";
+      end if;
+      if SANITY then
+          O := GL (g, p);
+          PI := [ ];
+          for h in O do
+              isit, x := LiftPseudoIsometry (T, T, h);
+              if isit then
+                  Append (~PI, h);
+              end if;
+          end for;
+          "    SANITY CHECK ... ", Set (PI) eq Set (PIO2);
+      end if; 
+      "----------"; 
+  end for;
+return true; 
+end function;
 
-G1 := RandomQuoByGenus (H, 4);
 
-subsG1a := CharacteristicSubgroups (G1);
-subsG1b := CharacteristicSubgroups (G1 : LineSigFn := Genus2Sig);
-subsG1c := CharacteristicSubgroups (G1 : FullPartition := true);
-subsG1d := CharacteristicSubgroups (G1 : FullPartition := true,
-                                         LineSigFn := Genus2Sig);
-[ #subsG1a , #subsG1b , #subsG1c , #subsG1d ];
-
-T := TwistedHeisenbergGroup (p, e);
-G2 := RandomQuoByGenus (T, 4);
-
-subsG2a := CharacteristicSubgroups (G2);
-subsG2b := CharacteristicSubgroups (G2 : LineSigFn := Genus2Sig);
-subsG2c := CharacteristicSubgroups (G2 : FullPartition := true);
-subsG2d := CharacteristicSubgroups (G2 : FullPartition := true,
-                                         LineSigFn := Genus2Sig);
-[ #subsG2a , #subsG2b , #subsG2c , #subsG2d ];
-
+random_test := function (d, p, e : SANITY := false, LIFT := true)
+"d =", d, "   p =", p, "   e =", e;
+"==============================";
+  for i in [1..num] do
+      S0 := [ Random (MatrixAlgebra (GF (p), d)) : j in [1..e] ];
+      S := [ S0[j] - Transpose (S0[j]) : j in [1..e] ];
+      T := Tensor (S, 2, 1);
+      O, np, nl, pi, lambda := ActionOnCodomain (T);
+   "we are labeling", pi, "points, and", lambda, "lines";
+   "there are", np, "point labels, and", nl, "line labels";
+   "the overgroup has order", #O;
+     if LIFT then
+          PIO := [ ];
+          for h in O do
+              isit, x := LiftPseudoIsometry (T, T, h);
+              if isit then
+                  Append (~PIO, h);
+              end if;
+          end for;
+          "of these elements,", #PIO, "lift to pseudo-isometries";
+      end if;
+      if SANITY then
+          OO := GL (g, p);
+          PI := [ ];
+          for h in OO do
+              isit, x := LiftPseudoIsometry (T, T, h);
+              if isit then
+                  Append (~PI, h);
+              end if;
+          end for;
+          "    SANITY CHECK ... ", Set (PI) eq Set (PIO);
+      end if; 
+      "----------";
+  end for;
+return true;
+end function;
 
 

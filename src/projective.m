@@ -79,7 +79,7 @@ ActionOnProjectiveSpace := function (S : points := [])
   RandomSchreier (HL);
   f := hom < HP -> HL | lgens >;
   tau := hom < H -> HP | pgens>; 
-return HP, HL, f, points, lines, tau;
+return HP, HL, f, points, lines, tau, W;
 end function;
 
 
@@ -527,7 +527,7 @@ intrinsic ActionOnCodomain (T::TenSpcElt :
   assert #S eq e;
   
   // find the groups acting on points and lines
-  Hp, Hl, f, points, lines, tau := ActionOnProjectiveSpace (S);
+  Hp, Hl, f, points, lines, tau, W := ActionOnProjectiveSpace (S);
         vprint Autotopism, 1 : "|points| =", #points;
         vprint Autotopism, 1 : "|lines| =", #lines;
   
@@ -563,8 +563,13 @@ intrinsic ActionOnCodomain (T::TenSpcElt :
   
   // adjust the action
   O := sub < Generic (O) | [ Transpose (O.i) : i in [1..Ngens (O)] ] >;
+  
+  pp := [ [ points[y] : y in x ] : x in point_part ];
+  pp := [ [ Coordinates (W, y.1) : y in x ] : x in pp ];
+  lp := [ [ lines[y] : y in x ] : x in line_part ];
+  lp := [ [ < Coordinates (W, y.1) , Coordinates (W, y.2) > : y in x ] : x in lp ];
 
-return O;
+return O, #point_part, #line_part, #points, #lines;
 
 end intrinsic;
 
