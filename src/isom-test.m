@@ -443,10 +443,10 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   try
 	  vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
   	Subgroup := ExponentiateDerivations(T);
-  	__THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
   catch e
-  	vprint Autotopism, 1 : "Lie algebra methods not fully supported for this tensor", e;
+  	vprint Autotopism, 1 : "Lie algebra methods not fully supported for this tensor";//, e;
   end try;
+	__THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
 
 // NOW LOWER THE SUPER GROUP--------------------------------------------------------------
   	if UseGraph and Log(2,__THE_W_INDEX) gt (2*(e-2)) then
