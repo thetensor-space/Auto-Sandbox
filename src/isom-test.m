@@ -505,11 +505,7 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
 	  Supergroup, Subgroup, t := __SearchCosetsW(T, Supergroup,Subgroup,piV, piW, __THE_W_INDEX, MAX);
 	  vprint Autotopism, 1 : "Total time ", t;
 	else
-    // JM: Commented this out. Might as well continue the algorithm despite unfortunate circumstances.
-//		vprint Autotopism, 1 : "Aborting, index too large.";
-    vprint Autotopism, 1 : "Index is very large but searching anyways...";
-    Supergroup, Subgroup, t := __SearchCosetsW(T, Supergroup,Subgroup,piV, piW, __THE_W_INDEX, MAX);
-    vprint Autotopism, 1 : "Total time ", t;
+		vprint Autotopism, 1 : "Aborting, index too large.";
    end if;
  
 
