@@ -30,6 +30,8 @@ __ReduceActionOnVW := function (G)
 	vprint Autotopism, 1 : 
 		"\tSearching for characteristic subgroups by Maglione-Wilson filters.";
    A := ProduceFilter(G);
+  vprintf Autotopism, 1 :
+    "\t\tFound %o new characteristic subgroups.", #A-2; // don't count G and 1.
 
 
    F := FrattiniSubgroup (G);

@@ -1,11 +1,16 @@
-freeze;
+//freeze;
+
+// EOB Oct 2016: this is a copy of the file unipotent.m distributed 
+// in GrpPC/pgps directory 
+// We include it here to avoid path import problems 
+
 
 /* !WARNING! Several functions in this file are being used by
       package/Group/GrpMat/CompTree/classical/rewriting/unipotent.m
     & package/Group/GrpMat/CompTree/classical/rewriting/MatrixPGroup.m
    so if you make any changes here, check whether you need to make
    any changes there! */
-
+// modified by Csaba Schneider to make it compatible with rewriting
 /* Algorithm to construct stabiliser of subspace under unipotent group.
    Original algorithm described in thesis of Ruth Schwingel, QMUL, 2000.
    This general implementation prepared by Elliot Costi, with input
@@ -98,7 +103,7 @@ end function;
 
 /* find increasing chain of subspaces of V fixed under X */
 PInvariantFlag := function (V, X)
-
+    
    F := BaseRing (X);
    q := #F;
    d := Degree (X);
@@ -119,7 +124,7 @@ PInvariantFlag := function (V, X)
    else
       W := [V]; // W starts a list containing just the whole space
       k := 1;
-      I := Identity (MA);
+      I := Identity (MA);    
       while Dimension (W[k]) ne 0 do
          k +:= 1;
          W[k] := &+[W[k-1] * (Y[j] - I): j in [1..t]];
@@ -127,38 +132,43 @@ PInvariantFlag := function (V, X)
             previous space and multiplying it by all the generators of the
             p-group minus the identity */
 
-      end while;
+      end while;   
    end if;
 
-   flag := [];
+   flag := []; 
+
    for i in [1..#W - 1] do
-      F, phi := quo < W[i] | W[i + 1] >;
+       F, phi := quo < W[i] | W[i + 1] >;
 
       /* F is the quotient space and phi is the natural map. For example in
          the trivial case, we go from a subspace with n vectors over a
          subspace with n-1 vectors to the full vector space of dimension 1. */
 
-      BF := Basis (F);
+      BF := Basis (F);        
       FB := [BF[j] @@ phi : j in [1..Dimension (F)]];
 
       /* the pre-image of each basis vector back up in W[i] */
-
       flag cat:= FB; // adds FB to flag
    end for;
 
    /* the collection of spaces made up of the last j vectors in flag. */
-   Spaces := [sub < V | >] cat
-      [sub <V | [flag[i]: i in [#flag..j by -1]]>: j in [#flag..1 by -1]];
+        
+   // change by csaba     
+   //Spaces := [sub < V | >] cat
+   //   [sub <V | [flag[i]: i in [#flag..j by -1]]>: j in [#flag..1 by -1]];
 
    /* reverses the order so that the full space is first and the empty space
       is last. */
-   Reverse (~Spaces);
+   // change by csaba                    
+   //Reverse (~Spaces);
 
    /* taking the vectors of flag and turning them into a matrix. E.g. [1, 0]
       and [0, 1] becomes the 2 by 2 identity matrix. */
    CB := (GL (d, q) ! &cat[Eltseq (f): f in flag])^-1;
-
-   return flag, CB, Spaces;
+   
+   // changes by csaba
+   //  return flag, CB, Spaces;
+     return flag, CB;
 end function;
 
 GetPFlagWithCache := function(V, K)
@@ -413,7 +423,7 @@ VectorCF := function (X, XSLP, u: ComputeBase := true, InitStr := "none")
          if RelativeVectorDepth (v, h) eq [j0, j1] then
             beta := FindMultiple (F, v, [j0, j1], h, g);
             /* find power of g that will adjust h to give it higher depth */
-            hh := h * g^beta;
+            hh := h * g^beta; 
             hhslp := XSLP[i] * gslp^beta;
             /* setting letter for word */
             letter := Minimum(i, last); last := i;
@@ -466,6 +476,7 @@ VectorCF := function (X, XSLP, u: ComputeBase := true, InitStr := "none")
    /* return the canonised vector, the element that maps the input vector
       to the canonised one (and its slp equivalent) and the stabiliser of v
       in the p-group (and its slp equivalent) */
+
    return v, x, xslp, X, XSLP;
 
 end function;
@@ -627,7 +638,7 @@ SubspaceCF := function (X, XSLP, U: ComputeBase := true, InitStr := "none")
    end if;
 
    UB := Basis (U);
-   t := #UB;
+   t := #UB; 
    CF, trans, transslp, X, XSLP := VectorCF(X, XSLP, UB[t]:
                                    ComputeBase := ComputeBase, InitStr := InitStr);
 
@@ -708,13 +719,13 @@ PGroupStabiliser_ := function (S, U, W: ComputeBase := true, InitStrs := <"X","n
    /* make S upper unitriangular */
    S := [s^CB : s in S ];
 
-   if ComputeBase then
+   if ComputeBase then 
       S, XSLP := PChiefSeriesGeneratorsWithCache(K, S, XSLP, InitStrs[1]);
    end if;
 
    CBinv := CB^-1;
 
-   U := U^CB;
+   U := U^CB; 
    UC, trans, transslp, Y, YSLP := SubspaceCF (S, XSLP, U:
        ComputeBase := ComputeBase, InitStr := InitStrs[2]);
 
@@ -776,7 +787,9 @@ end function;
    for some parameters. It may be found in
      package/Group/GrpMat/CompTree/unipotent.m
 */
-intrinsic UnipotentStabiliser (G:: GrpMat, U:: ModTupFld)
+intrinsic UnipotentStabiliser (G:: GrpMat, U:: ModTupFld : 
+         ComputeBase := true, 
+         InitStrs := <"X","none"> )
          -> GrpMat, ModTupFld, GrpMatElt, GrpSLPElt
 {G is a p-subgroup of GL(d, q) where GF(q) has characteristic p;
  U is a subspace of the natural vector space for G.
@@ -784,12 +797,13 @@ intrinsic UnipotentStabiliser (G:: GrpMat, U:: ModTupFld)
  of U under G, an element x of G such that U^x = C, and the SLP for x
  as element of the word group of G}
 
-   require IsUnipotent (G): "Group must be unipotent";
+   // require IsUnipotent (G): "Group must be unipotent";
 
-   ComputeBase := true;
    W := WordGroup(G);
    cf, trans, transslp, stab := PGroupStabiliser (G, U, W:
-                                ComputeBase := ComputeBase);
+                                ComputeBase := ComputeBase,
+                                InitStrs := InitStrs );
+
    return stab, cf, trans, transslp;
 
 end intrinsic;
