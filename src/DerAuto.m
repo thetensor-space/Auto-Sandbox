@@ -1,74 +1,247 @@
-/*
- *  Code written by P.A. Brooksbank and J. Maglione using 
- *  exponentiation of Lie algebra of derivations.  This may 
- *  eventually be a separate package.  This is for now here 
- *  to get some working code.
- *
- */
-
+  /*
+    -----------------------------------------------------------------
+    An implementation based on techniques developed in     
+    Groups acting on densors, Brooksbank, Maglione, Wilson (preprint)
+    The overarching goals are automorphism group functions and
+    isomorphism tests for certain p-groups.
+    -----------------------------------------------------------------
+  */
+ 
+/* -------------------- subroutines ------------------ */
+ 
 __exp := function (z)
-	z := Matrix (z);
-	isit, n := IsNilpotent (z);
-	assert isit;
-  assert n le Characteristic (BaseRing (z));
-	u := Parent (z)!1;
-	for i in [1..n-1] do
-		u +:= z^i / Factorial (i);
-	end for;
+	// Convert to associative product if necessary.
+	if ISA (Type(z), AlgMatLieElt) then 
+		P := Parent (z);
+		MA := MatrixAlgebra (BaseRing (P), Degree (P));
+		z := MA!z;
+	end if;
+	u := z^0;
+	i := 1;
+	v := z;
+	while not (v eq 0) do
+		u +:= v / Factorial (i);
+		i +:= 1;
+		v *:= z;
+	end while;
 return u;
 end function;
 
+
 __preimage := function (ms, MS, y)
-     k := BaseRing (ms);
-     c := Coordinates (MS, MS!y);
-     coords := [];
-     for a in c do
+    // WHAT DOES IT DO?
+    k := BaseRing (ms);
+    c := Coordinates (MS, MS!y);
+    coords := [];
+    for a in c do
          coords cat:= Eltseq (a, k);
-     end for;
+    end for;
 return &+[ coords[i] * ms.i : i in [1..Ngens (ms)] ];
 end function;
 
 
-/* X contains a basis of the matrix space it spans */
 __ReduceToBasis := function (X)
-  k := BaseRing (Parent (X[1]));
-  m := Nrows (X[1]);
-  n := Ncols (X[1]);
-  ms := KMatrixSpace (k, m , n);
-  U := sub < ms | [ ms!(X[i]) : i in [1..#X] ] >;
-  d := Dimension (U);
-  if d eq #X then
-    return [1..d];
-  else
-    J := [ Min ({ i : i in [1..#X] | X[i] ne 0 }) ];
-    j := J[1];
-    W := sub < ms | [ ms!(X[j]) : j in J ] >;
-    while Dimension (W) lt d do
-      j +:= 1;
-      x := ms!(X[j]);
-      if not x in W then
-        Append (~J, j);
-        W := sub < ms | [ ms!(X[j]) : j in J ] >;
-      end if;
-    end while;
-    return J;
-  end if;
+    // X contains a basis of the matrix space it spans
+    k := BaseRing (Parent (X[1]));
+    m := Nrows (X[1]);
+    n := Ncols (X[1]);
+    ms := KMatrixSpace (k, m , n);
+    U := sub < ms | [ ms!(X[i]) : i in [1..#X] ] >;
+    d := Dimension (U);
+    if d eq #X then
+         return [1..d];
+    else
+         J := [ Min ({ i : i in [1..#X] | X[i] ne 0 }) ];
+         j := J[1];
+         W := sub < ms | [ ms!(X[j]) : j in J ] >;
+         while Dimension (W) lt d do
+              j +:= 1;
+              x := ms!(X[j]);
+              if not x in W then
+                   Append (~J, j);
+                   W := sub < ms | [ ms!(X[j]) : j in J ] >;
+              end if;
+         end while;
+         return J;
+    end if;
 end function;
 
-/* Constructs generators for the central automorphisms. */
-__CentralAutos := function( p, d, e )
-  gens := [];
-  I := IdentityMatrix(GF(p), d+e);
-  for i in [1..d] do
-    for j in [1..e] do
-      A := I;
-      A[i][d+j] := 1;
-      Append(~gens, A);
+
+__CentralAutos := function (p, d, e)
+    // constructs generators for the central automorphisms
+    gens := [];
+    I := IdentityMatrix (GF (p), d + e);
+    for i in [1..d] do
+         for j in [1..e] do
+              A := I;
+              A[i][d+j] := 1;
+              Append (~gens, A);
+         end for;
     end for;
-  end for;
-  G := GL(d+e, p);
-  return [ G!A : A in gens ];
+    G := GL (d + e, p);
+return [ G!A : A in gens ];
 end function;
+
+
+/* -------------------- intrinsics ------------------ */
+
+/* 
+    INPUT:
+      (1) L, an irreducible representation of a simple Lie algebra.
+      (2) E, the part of a Chevalley basis corresponding to the
+          positive fundamental roots of L.
+      (3) F, the "opposite" part of the Chevalley basis.
+    OUTPUT:
+      (1) a transition matrix to a basis for the representation obtained 
+          by spinning up under F the highest weight vector relative to E.
+      (2) the "labels" for the basis vectors––pointers to the
+          elements of F that were used to build the basis vectors.
+*/ 
+intrinsic HighestWeightBasis (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> AlgMatElt, SeqEnum
+  { Finds a transition matrix to a highest weight basis for L relative to E and F.}
+     
+     k := BaseRing (L);
+     n := Degree (L);
+     
+     // find unique highest weight vector corresponding to E
+     HW := &meet [ Nullspace (x) : x in E ];
+     assert Dimension (HW) eq 1;
+     lambda := HW.1;
+     
+     // spin up the basis using elements of F, keeping track of words as we go
+     V := VectorSpace (k, n);
+     B := [ V!lambda ];
+     W := [ [] ];
+     while #B lt n do
+          assert exists (i){ a : a in [1..#F] | 
+                     exists (j){ b : b in [1..#B] | not B[b] * F[a] in sub < V | B > }
+                           };                 
+          Append (~B, B[j] * F[i]);
+          Append (~W, Append (W[j], i));
+     end while;
+  
+     C := GL (n, k)!Matrix (B);
+     
+return C, W;
+
+end intrinsic;
+
+
+/*
+    INPUT:
+      (1) L, an irreducible representation of a simple Lie algebra.
+      (2) S, a set of invertible linear transformations of given L-module
+    
+    OUTPUT: true if, and only  if, L^S = L
+*/
+intrinsic NormalizesMatrixLieAlgebra (L::AlgMatLie, S::SeqEnum) -> BoolElt
+  { Returns true if, and only if, all elements of S normalize L. }
+  
+     k := BaseRing (L);
+     n := Degree (L);
+     MS := KMatrixSpace (k, n, n);
+     LL := KMatrixSpaceWithBasis ([ MS!Matrix (x) : x in Basis (L) ]);
+     
+return forall { s : s in S | 
+          forall { i : i in [1..Ngens (LL)] |
+              s^-1 * LL.i * s in LL
+                 }
+              };
+              
+end intrinsic;
+
+
+/*
+   INPUT: 
+      (1) name of the acting Lie algebra 
+      (2) an irreducible representation L of the simple Lie algebra
+          of type A and Lie rank d
+      (3) the subset E of a Chevalley basis of L corresponding to
+          the positive fundamental roots; we assume these have been
+          obtained somehow (e.g. Ryba's algorithms in theory; whatever
+          is in Magma in practice).
+      (4) the opposite part of F of the Chevalley basis
+   
+   OUTPUT: the group of similarities of the simple Lie algebra rep, which
+           is also the normalizer of L in its ambient group of linear 
+           transformations. 
+   
+   ***** AT PRESENT THIS IS ONLY IMPLEMENTED FOR TYPE A LIE ALGEBRAS *****
+*/
+
+intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie, 
+                    E::SeqEnum, F::SeqEnum) -> GrpMat
+  { Construct the group of similarites of the given representation.}
+
+     k := BaseRing (L);
+     G := GL (Degree (L), k);
+     d := Dimension (RootDatum (L));
+     
+     X := [G!__exp (a) : a in E];
+     Y := [G!__exp (a) : a in F];
+     gens := X cat Y;
+     assert NormalizesMatrixLieAlgebra (L, gens);
+     
+     C, W := HighestWeightBasis (L, E, F);
+   
+     // use C and W to build the diagonal automorphism
+     D0 := [ k!1 ];
+     xi := PrimitiveElement (k);
+     S := [ xi ] cat [ k!1 : i in [1..d] ];
+     for i in [2..#W] do
+          Append (~D0, &*[ S[W[i][j]] / S[1+W[i][j]] : j in [1..#W[i]] ]);
+     end for;
+     D0 := DiagonalMatrix (D0);
+     D := C^-1 * D0 * C;
+     assert NormalizesMatrixLieAlgebra (L, [D]);
+     Append (~gens, D);
+     
+     // use C and W to build the graph automorphism
+     B := [ Vector (C[i]) : i in [1..Nrows (C)] ];
+     V := VectorSpaceWithBasis (B);
+     Gamma0 := [ ];
+     for i in [1..#W] do
+          w := W[i];
+          w_gamma := [ d+1 - w[j] : j in [1..#w] ]; 
+              // assumes fund roots ordered nicely, namely that the
+              // graph automorphism sends F_i to F_(d+1-i)
+          vec := V.1;
+          for j in [1..#w_gamma] do  
+               vec := vec * F[w_gamma[j]];
+          end for;
+          Append (~Gamma0, Coordinates (V, vec));
+     end for;
+     Gamma0 := Matrix (Gamma0);
+     if Rank (Gamma0) lt Rank (C) then
+          "graph automorphism did not lift";
+     else
+          Gamma := C^-1 * G!Gamma0 * C;
+          if NormalizesMatrixLieAlgebra (L, [Gamma]) then
+               Append (~gens, Gamma);
+          else
+               "graph automorphism did not lift";
+          end if;
+     end if;
+
+     Z := [ xi : i in [1..Degree (G)] ];
+     Z := G!DiagonalMatrix (Z);
+     Append (~gens, Z);
+
+     N := sub < GL (Degree (L), k) | gens >;
+     
+return N;
+
+end intrinsic;
+
+
+
+
+/*-------------------------------------------------------------------*/
+/*---- The following function is a first attempt at decomposing  ----*/
+/*---- a matrix Lie algebra, computing the normalizer, and using ----*/
+/*---- it to compute the pseudo-isometries of a tensor that has  ----*/
+/*---- a substantial derivation algebra. RETURN TO THIS SOON.    ----*/
+/*-------------------------------------------------------------------*/
 
 /*
   Input: a tensor of p-group, G, of p-class 2, having p-central series
