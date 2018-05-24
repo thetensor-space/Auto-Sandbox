@@ -82,26 +82,75 @@ __CentralAutos := function (p, d, e)
 return [ G!A : A in gens ];
 end function;
 
+__GraphAutos := function (type, r)
+    // constructs generators for group of permutations of the positive
+    // fundamental roots induced by the graph automorphisms of the simple
+    // Lie algebra of the given type.
+    S := SymmetricGroup (r);
+    if type eq "A" then
+         return sub < S | S![r + 1 - i : i in [1..r] ] >;
+    else
+         error "not implemented yet";
+    end if;
+end function; 
+
+
+/*
+    INPUT:
+      (1) A, a k-algebra (e.g. Lie or associative) of matrices.
+      (2) S, a set of invertible linear transformations of the 
+          underlying k-algebra.
+    
+    OUTPUT: true if, and only  if, L^S = L
+*/
+NormalizesMatrixAlgebra := function (A, S)  
+     k := BaseRing (A);
+     n := Degree (A);
+     MS := KMatrixSpace (k, n, n);
+     X := KMatrixSpaceWithBasis ([ MS!Matrix (x) : x in Basis (A) ]);    
+return forall { s : s in S | 
+          forall { i : i in [1..Ngens (X)] |
+              s^-1 * X.i * s in X
+                 }
+              };             
+end function;
+
+
 
 /* -------------------- intrinsics ------------------ */
+
+// not sure where this should go, but I could find it in Magma
+intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt, 
+                  i::RngIntElt, j::RngIntElt) -> ModMatFldElt
+  { The (i,j) elementary m x n matrix over the field K }
+  Eij := KMatrixSpace (K, m, n)!0;
+  Eij[i][j] := 1;
+return Eij;
+end intrinsic;
 
 /* 
     INPUT:
       (1) L, an irreducible representation of a simple Lie algebra.
       (2) E, the part of a Chevalley basis corresponding to the
-          positive fundamental roots of L.
-      (3) F, the "opposite" part of the Chevalley basis.
+          positive fundamental roots of L. In particular, the 
+          length of E is the Lie rank r of L.
+      (3) F, the opposite fundamental roots.
+      
     OUTPUT:
-      (1) a transition matrix to a basis for the representation obtained 
-          by spinning up under F the highest weight vector relative to E.
-      (2) the "labels" for the basis vectors––pointers to the
-          elements of F that were used to build the basis vectors.
+      (1) a transition matrix to a crystal basis.
+      (2) a crystal basis data structure, which is a list whose
+          members are tuples with the following information:
+           * a vector v
+           * a label for v: a word in [ F[1] ... F[r] ]
+           * labelled pointers to v from previous basis elements
 */ 
-intrinsic HighestWeightBasis (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> AlgMatElt, SeqEnum
-  { Finds a transition matrix to a highest weight basis for L relative to E and F.}
+intrinsic CrystalBasis (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> 
+              AlgMatElt, SeqEnum
+  {Finds a transition matrix to a highest weight basis for L relative to E and F.}
      
      k := BaseRing (L);
      n := Degree (L);
+     r := #E;
      
      // find unique highest weight vector corresponding to E
      HW := &meet [ Nullspace (x) : x in E ];
@@ -111,43 +160,37 @@ intrinsic HighestWeightBasis (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> AlgMatElt
      // spin up the basis using elements of F, keeping track of words as we go
      V := VectorSpace (k, n);
      B := [ V!lambda ];
-     W := [ [] ];
+     A := [* < V!lambda , [ ] , [ ]  > *];
+     B_old := B;
      while #B lt n do
-          assert exists (i){ a : a in [1..#F] | 
-                     exists (j){ b : b in [1..#B] | not B[b] * F[a] in sub < V | B > }
-                           };                 
-          Append (~B, B[j] * F[i]);
-          Append (~W, Append (W[j], i));
+          P := { [i, j] : i in [1..#B_old], j in [1..r] |                     
+                              B_old[i] * F[j] ne 0 };
+          B_new := [ ];
+          for p in P do
+               b := B_old[p[1]] * F[p[2]];
+               if (b * E[p[2]] ne 0) and (b * E[p[2]] in sub < V | B_old[p[1]] >) 
+                  and not b in sub < V | B cat B_new > then
+                    Append (~B_new, b);   
+                    labs := [ [ i , j ] : i in [1..#B] , j in [1..r] | 
+                        (B[i] * F[j] ne 0) and (B[i] * F[j] in sub < V | b >) and
+                        (b * E[j] ne 0) and (b * E[j] in sub < V | B[i] >)
+                        ];
+                    labs cat:= [ [ i + #B, j ] : i in [1..#B_new] , j in [1..r] |
+                        (B_new[i] * F[j] ne 0) and (B_new[i] * F[j] in sub < V | b >) and
+                        (b * E[j] ne 0) and (b * E[j] in sub < V | B_new[i] >)
+                        ];
+                    w := Append (A[labs[1][1]][2], labs[1][2]);
+                    Append (~A, < b , w , labs >);
+               end if;
+          end for;
+          B cat:= B_new;
+          B_old := B_new;
      end while;
-  
-     C := GL (n, k)!Matrix (B);
      
-return C, W;
-
-end intrinsic;
-
-
-/*
-    INPUT:
-      (1) L, an irreducible representation of a simple Lie algebra.
-      (2) S, a set of invertible linear transformations of given L-module
-    
-    OUTPUT: true if, and only  if, L^S = L
-*/
-intrinsic NormalizesMatrixLieAlgebra (L::AlgMatLie, S::SeqEnum) -> BoolElt
-  { Returns true if, and only if, all elements of S normalize L. }
-  
-     k := BaseRing (L);
-     n := Degree (L);
-     MS := KMatrixSpace (k, n, n);
-     LL := KMatrixSpaceWithBasis ([ MS!Matrix (x) : x in Basis (L) ]);
+     C := Matrix (B);
      
-return forall { s : s in S | 
-          forall { i : i in [1..Ngens (LL)] |
-              s^-1 * LL.i * s in LL
-                 }
-              };
-              
+return C, A;
+
 end intrinsic;
 
 
@@ -169,66 +212,87 @@ end intrinsic;
    ***** AT PRESENT THIS IS ONLY IMPLEMENTED FOR TYPE A LIE ALGEBRAS *****
 */
 
-intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie, 
-                    E::SeqEnum, F::SeqEnum) -> GrpMat
+intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie :
+                    E := [ ] , F := [ ] 
+                                        ) -> GrpMat
   { Construct the group of similarites of the given representation.}
 
      k := BaseRing (L);
-     G := GL (Degree (L), k);
-     d := Dimension (RootDatum (L));
+     r := Rank (GroupOfLieType (name, k));
+      /* TO DO---insert graph auto perm for "name" */
      
+     G := GL (Degree (L), k);
+     if #E eq 0 then
+          E, F := ChevalleyBasis (L);
+     end if;
+     assert #E ge r;
+       /* TO DO---make sure the first r elements correspond to fundamental roots */
+     E := [ E[i] : i in [1..r] ];
+     F := [ F[i] : i in [1..r] ];
+     C, crys := CrystalBasis (L, E, F);
+     
+     // compute the connected component of the similarity group by exponentiation
      X := [G!__exp (a) : a in E];
      Y := [G!__exp (a) : a in F];
      gens := X cat Y;
-     assert NormalizesMatrixLieAlgebra (L, gens);
-     
-     C, W := HighestWeightBasis (L, E, F);
+assert NormalizesMatrixAlgebra (L, gens); // sanity check
    
-     // use C and W to build the diagonal automorphism
+     // build the diagonal automorphism
      D0 := [ k!1 ];
      xi := PrimitiveElement (k);
-     S := [ xi ] cat [ k!1 : i in [1..d] ];
-     for i in [2..#W] do
-          Append (~D0, &*[ S[W[i][j]] / S[1+W[i][j]] : j in [1..#W[i]] ]);
+     S := [ xi ] cat [ k!1 : i in [1..r] ];
+     for i in [2..#crys] do
+          word := crys[i][2];  // the word labelling the i-th node 
+          Append (~D0, &*[ S[word[j]] / S[1+word[j]] : j in [1..#word] ]);
      end for;
      D0 := DiagonalMatrix (D0);
      D := C^-1 * D0 * C;
-     assert NormalizesMatrixLieAlgebra (L, [D]);
+assert NormalizesMatrixAlgebra (L, [D]);  // sanity check
      Append (~gens, D);
      
-     // use C and W to build the graph automorphism
+     // build the graph automorphism
      B := [ Vector (C[i]) : i in [1..Nrows (C)] ];
+
      V := VectorSpaceWithBasis (B);
-     Gamma0 := [ ];
-     for i in [1..#W] do
-          w := W[i];
-          w_gamma := [ d+1 - w[j] : j in [1..#w] ]; 
-              // assumes fund roots ordered nicely, namely that the
-              // graph automorphism sends F_i to F_(d+1-i)
-          vec := V.1;
-          for j in [1..#w_gamma] do  
-               vec := vec * F[w_gamma[j]];
+     gens0 := [ ];
+     type := "A";  // TO DO: consider other types
+     for s in Generators (__GraphAutos (type, r)) do
+          g0 := [ ];
+          for i in [1..#crys] do
+               word := crys[i][2];
+               gword := [ word[j]^s : j in [1..#word] ];           
+               vec := V.1;
+               for j in [1..#gword] do  
+                    vec := vec * F[gword[j]];
+               end for;
+               Append (~g0, Coordinates (V, vec));
           end for;
-          Append (~Gamma0, Coordinates (V, vec));
+          g0 := Matrix (g0);
+          Append (~gens0, g0);
      end for;
-     Gamma0 := Matrix (Gamma0);
-     if Rank (Gamma0) lt Rank (C) then
-          "graph automorphism did not lift";
-     else
-          Gamma := C^-1 * G!Gamma0 * C;
-          if NormalizesMatrixLieAlgebra (L, [Gamma]) then
-               Append (~gens, Gamma);
+     
+     for g0 in gens0 do
+          if Rank (g0) lt Rank (C) then
+               "graph automorphism did not lift at all";
           else
-               "graph automorphism did not lift";
+               g := C^-1 * G!g0 * C;
+               if NormalizesMatrixAlgebra (L, [g]) then
+                    Append (~gens, g);
+                    "added a graph automorphism";
+               else
+                    "graph automorphism did not normalize L";
+               end if;
           end if;
-     end if;
+     end for;
 
      Z := [ xi : i in [1..Degree (G)] ];
      Z := G!DiagonalMatrix (Z);
      Append (~gens, Z);
 
      N := sub < GL (Degree (L), k) | gens >;
-     
+    
+assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
+
 return N;
 
 end intrinsic;
