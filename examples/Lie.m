@@ -16,26 +16,70 @@ G2 := PCGroup(\[ 9, -5, 5, 5, 5, 5, -5, 5, 5, 5, 56341, 422552, 2109521, 2817003
 
 /*----- some constructions for testing Lie algebra normalizer code ----*/
 
-MyAdjointRep := function (name, k : Scramble := false)
+__KMatrixSpaceToLieAlgebra := function (X)
+  k := BaseRing (X);
+  d := Nrows (X.1);
+  ML := MatrixLieAlgebra (k, d);
+return sub < ML | [ Matrix (X.i) : i in [1..Ngens (X)] ] >;
+end function;                           
+
+
+MyNaturalRep := function (name, k : SCRAMBLE := false, CHEVALLEY := false)
+
      L := LieAlgebra (name, k);
-     E, F, H := ChevalleyBasis (L);
-     ad := AdjointRepresentation (L);
-     n := Degree (Image (ad));
-     G := GL (n, k);     
-     if Scramble then 
+     stan := StandardRepresentation (L);
+     n := Degree (Image (stan));
+     G := GL (n, k); 
+         
+     if SCRAMBLE then 
           g := Random (G); 
      else 
           g := Identity (G); 
      end if;
      
-     adE := [ g * Matrix (E[i] @ ad) * g^-1 : i in [1..#E] ];
-     adF := [ g * Matrix (F[i] @ ad) * g^-1 : i in [1..#F] ];
-     adL_gens := [ g * Matrix (L.i @ ad) * g^-1 : i in [1..Ngens (L)] ];
-     adL := sub < MatrixLieAlgebra (k, n) | adL_gens >;     
-return adL, adE, adF;
+     nat_gens := [ g * Matrix (L.i @ stan) * g^-1 : i in [1..Ngens (L)] ];
+     L := sub < MatrixLieAlgebra (k, n) | nat_gens >;
+     
+     if CHEVALLEY then
+          E, F, H := ChevalleyBasis (L);
+          E := [ g * Matrix (E[i] @ stan) * g^-1 : i in [1..#E] ];
+          F := [ g * Matrix (F[i] @ stan) * g^-1 : i in [1..#F] ];
+          return L, E, F;
+     end if;
+     
+return L, _, _;
+
 end function;
 
 
+MyAdjointRep := function (name, k : SCRAMBLE := false, CHEVALLEY := false)
+
+     L := LieAlgebra (name, k);
+     ad := AdjointRepresentation (L);
+     n := Degree (Image (ad));
+     G := GL (n, k); 
+         
+     if SCRAMBLE then 
+          g := Random (G); 
+     else 
+          g := Identity (G); 
+     end if;
+     
+     adL_gens := [ g * Matrix (L.i @ ad) * g^-1 : i in [1..Ngens (L)] ];
+     adL := sub < MatrixLieAlgebra (k, n) | adL_gens >;
+     
+     if CHEVALLEY then
+          E, F, H := ChevalleyBasis (L);
+          adE := [ g * Matrix (E[i] @ ad) * g^-1 : i in [1..#E] ];
+          adF := [ g * Matrix (F[i] @ ad) * g^-1 : i in [1..#F] ];
+          return adL, adE, adF;
+     end if;
+     
+return adL, _, _;
+
+end function;
+
+/* TO DO: make a generic symmetric square function */
 sl3_example := function (k)
      MS := KMatrixSpace (k, 3, 3);
      S1 := MS![1,0,0,0,0,0,0,0,0];
@@ -74,6 +118,11 @@ sl3_example := function (k)
      end for;    
 return L, E, F; 
 end function;
+
+
+
+
+
 
 
 
