@@ -57,17 +57,16 @@ basic_SL2 := function (p, l, m, n : BLOCK := [ ])
      Append (~gens, u2);
      
      U := sub < G | u1, u2 >;
-//"|U| =", Factorization (#U);
      H := sub < G | gens >;
      R := NormalClosure (H, U);
-//"|R| =", Factorization (#R);
        
 return H, Omega, R;
 end function;
 
 // given H = R : Omega, as above, compute the representations on V = R/[R,R]
 // and on W = [R,R].
-__get_representations := function (Omega, R)
+__get_representation_info := function (Omega, R)
+
   W := DerivedSubgroup (R);
   assert IsElementaryAbelian (W);
   AW, fW := AbelianGroup (W);
@@ -80,11 +79,16 @@ __get_representations := function (Omega, R)
     omega_W := GW!Matrix (ims);
     Append (~OmegaW_gens, omega_W);
   end for;
+
   OmegaW := sub < GW | OmegaW_gens >;
   beta := hom < Omega -> OmegaW | OmegaW_gens >;
+
   V, pi := R / W;
   assert IsElementaryAbelian (V);
+  "computing isomorphism of R/[R,R] with abelian group ...";
+ttt := Cputime ();
   AV, fV := AbelianGroup (V);
+  "... done in time", Cputime (ttt);
   Vbas := [ AV.i @@ fV : i in [1..Ngens (AV)] ];
   GV := GL (#Vbas, BaseRing (R));
   OmegaV_gens := [ ];
@@ -94,8 +98,52 @@ __get_representations := function (Omega, R)
     omega_V := GV!Matrix (ims);
     Append (~OmegaV_gens, omega_V);
   end for;
+
   OmegaV := sub < GV | OmegaV_gens >;
   tau := hom < Omega -> OmegaV | OmegaV_gens >;
+
+/*
+AN EXPERIMENT WORKING JUST WITH THE NONTRIVIAL ACTION OF OMEGA on R
+....
+  "R has order", Factorization (#R), "and", Ngens (R), "generators";
+  R := CommutatorSubgroup (Omega, R);
+  "[Omega, R] has order", Factorization (#R), "and", Ngens (R), "generators";
+  W := DerivedSubgroup (R);
+time  assert IsElementaryAbelian (W);
+time  AW, fW := AbelianGroup (W);
+  Wbas := [ AW.i @@ fW : i in [1..Ngens (AW)] ];
+  GW := GL (#Wbas, BaseRing (R));
+  OmegaW_gens := [ ];
+  for j in [1..Ngens (Omega)] do
+    omega := Omega.j;
+    ims := [ Eltseq ((omega^-1 * Wbas[i] * omega) @ fW) : i in [1..#Wbas] ];
+    omega_W := GW!Matrix (ims);
+    Append (~OmegaW_gens, omega_W);
+  end for;
+
+  OmegaW := sub < GW | OmegaW_gens >;
+  beta := hom < Omega -> OmegaW | OmegaW_gens >;
+
+time  V, pi := R / W;
+time  assert IsElementaryAbelian (V);
+  "computing isomorphism of R/[R,R] with abelian group ...";
+ttt := Cputime ();
+  AV, fV := AbelianGroup (V);
+  "... done in time", Cputime (ttt);
+  Vbas := [ AV.i @@ fV : i in [1..Ngens (AV)] ];
+  GV := GL (#Vbas, BaseRing (R));
+  OmegaV_gens := [ ];
+  for j in [1..Ngens (Omega)] do
+    omega := Omega.j;
+    ims := [ Eltseq (((omega^-1 * (Vbas[i] @@ pi) * omega) @ pi) @ fV) : i in [1..#Vbas] ];
+    omega_V := GV!Matrix (ims);
+    Append (~OmegaV_gens, omega_V);
+  end for;
+
+  OmegaV := sub < GV | OmegaV_gens >;
+  tau := hom < Omega -> OmegaV | OmegaV_gens >;
+*/
+
 return tau, beta;
 end function;
 

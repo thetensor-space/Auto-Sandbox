@@ -1,4 +1,11 @@
 // Natural module for Chevalley Lie algberas
+__KMatrixSpaceToLieAlgebra := function (X)
+  k := BaseRing (X);
+  d := Nrows (X.1);
+  ML := MatrixLieAlgebra (k, d);
+return sub < ML | [ Matrix (X.i) : i in [1..Ngens (X)] ] >;
+end function;
+
 NaturalModule := function(Name, q)
   return MatrixLieAlgebra(Name, GF(q));
 end function;
@@ -13,14 +20,19 @@ AdjointModule := function(Name, q)
   return Der;
 end function;
 
-// 8-dimensional G2 module
+// 7-dimensional G2 module
 G2Module := function(q)
   Oct := OctonionAlgebra(GF(q), -1, -1, -1);
   t := Tensor(Oct);
   D := DerivationAlgebra(t);
   Der := Induce(D, 0);
   assert SemisimpleType(Der) eq "G2";
-  return Der;
+  M := RModule (Der);
+  assert not IsIrreducible (M);
+  assert exists (N){ X : X in Submodules (M) | Dimension (X) eq 7 };
+  ML := MatrixLieAlgebra (GF (q), 7);
+  L := sub < ML | [ ActionGenerator (N, i) : i in [1..#ActionGenerators (N)] ] >;
+  return L;
 end function;
 
 
@@ -49,7 +61,8 @@ SpModule := function(n, q)
   B2 := [InsertBlock(ZeroMatrix(GF(q), 2*n, 2*n), x, 1, n+1) : x in sym];
   B3 := [InsertBlock(ZeroMatrix(GF(q), 2*n, 2*n), x, n+1, 1) : x in sym];
   MS := KMatrixSpace(GF(q), 2*n, 2*n);
-  L := sub< MS | B1, B2, B3 >;
+  S := sub< MS | B1, B2, B3 >;
+  L := __KMatrixSpaceToLieAlgebra (S);
   return L;
 end function;
 
@@ -62,7 +75,8 @@ EvenOModule := function(n, q)
   B2 := [InsertBlock(ZeroMatrix(GF(q), 2*n, 2*n), x, 1, n+1) : x in alt];
   B3 := [InsertBlock(ZeroMatrix(GF(q), 2*n, 2*n), x, n+1, 1) : x in alt];
   MS := KMatrixSpace(GF(q), 2*n, 2*n);
-  L := sub< MS | B1, B2, B3 >;
+  S := sub< MS | B1, B2, B3 >;
+  L := __KMatrixSpaceToLieAlgebra (S);
   return L;
 end function;
 
@@ -78,6 +92,17 @@ OddOModule := function(n, q)
   MS := KMatrixSpace(GF(q), 2*n+1, 2*n+1);
   X := [MS.i - Transpose(MS.(i+n)) : i in [2..n+1]];
   Y := [MS.(n+i) - Transpose(MS.i) : i in [2..n+1]];
-  L := sub< MS | B1, B2, B3, X, Y >;
+  S := sub< MS | B1, B2, B3, X, Y >;
+  L := __KMatrixSpaceToLieAlgebra (S);
   return L;
+end function;
+
+// 27-dimensional F4 module
+F4Module := function(q)
+  A := ExceptionalJordanCSA (GF(q));
+  t := Tensor(A);
+  D := DerivationAlgebra(t);
+  Der := Induce(D, 0);
+  assert SemisimpleType(Der) eq "F4";
+  return Der;
 end function;
