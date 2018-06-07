@@ -1,11 +1,11 @@
 A package for isomorphism testing of p-groups by:
 
 Peter A. Brooksbank, Bucknell University
-Joshua Maglione, Colorado State University
+Joshua Maglione, Kent State University
 Eamonn O’Brien, University of Auckland
 James B. Wilson, Colorado State University
 
-Copyright 2016. GNU Public Liscence v. 3.
+Copyright 2016--2018. GNU Public Liscence v. 3.
 
 Contents:
 
