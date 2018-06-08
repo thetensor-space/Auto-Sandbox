@@ -81,19 +81,7 @@ __CentralAutos := function (p, d, e)
     G := GL (d + e, p);
 return [ G!A : A in gens ];
 end function;
-
-__GraphAutos := function (type, r)
-    // constructs generators for group of permutations of the positive
-    // fundamental roots induced by the graph automorphisms of the simple
-    // Lie algebra of the given type.
-    S := SymmetricGroup (r);
-    if type eq "A" then
-         return sub < S | S![r + 1 - i : i in [1..r] ] >;
-    else
-         error "not implemented yet";
-    end if;
-end function; 
-
+ 
 
 /*
     INPUT:
@@ -206,6 +194,20 @@ intrinsic ExtendByNormalizer(H::GrpMat,U::ModTup) -> GrpMat
 end intrinsic;
 
 
+intrinsic Der (T::TenSpcElt) -> AlgMatLie , LagMatLie , Map
+  {A version of DerivationAlgebra that returns the rep on W.}
+    D := DerivationAlgebra (T);
+    k := BaseRing (D);
+    d := Degree (D);
+    e := Dimension (Codomain (T));
+    gens := [ ExtractBlock (D.i, d-e+1, d-e+1, e, e) : i in [1..Ngens (D)] ];
+    DW := sub < MatrixLieAlgebra (k, e) | gens >;
+    f := hom < D -> DW | x :-> DW!ExtractBlock (x, d-e+1, d-e+1, e, e) >;
+return D, DW, f;
+end intrinsic;
+
+
+
 /* 
     INPUT:
       (1) L, an irreducible representation of a simple Lie algebra.
@@ -314,8 +316,30 @@ intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie :
      Y := [G!__exp (a) : a in F];
      gens := X cat Y;
 assert NormalizesMatrixAlgebra (L, gens); // sanity check
+
+     // extract the type of L so that we know which autos to try to lift
+     graph_autos := [ ];
+     if Dimension (L) eq ((r+1)^2 - 1) then
+         type := "A";
+         Append (~graph_autos, Sym (r)![r + 1 - i : i in [1..r] ]);
+     elif Dimension (L) eq (2*r^2 + r) then
+         if Degree (Image (StandardRepresentation (LieAlgebra (name, k)))) mod 2 eq 0 then
+             type := "C";
+         else
+             type := "B";
+         end if;
+     elif Dimension (L) eq (2*r^2 - r) then
+         type := "D";
+         Append (~graph_autos, Sym (r)!(r-1,r));
+         if r eq 4 then
+             Append (~graph_autos, Sym (r)!(1,3,4));
+         end if;
+     else
+         type := "other";
+     end if;
+"name =", name, "    type =", type, "    rank =", r;
    
-     // build the diagonal automorphism
+     // build the diagonal automorphism ... NEED TO ADJUST FOR NON-A TYPES?
      D0 := [ k!1 ];
      xi := PrimitiveElement (k);
      S := [ xi ] cat [ k!1 : i in [1..r] ];
@@ -333,8 +357,8 @@ assert NormalizesMatrixAlgebra (L, [D]);  // sanity check
 
      V := VectorSpaceWithBasis (B);
      gens0 := [ ];
-     type := "A";  // TO DO: consider other types
-     for s in Generators (__GraphAutos (type, r)) do
+"trying to lift", #graph_autos, "graph auto(s)...";
+     for s in graph_autos do
           g0 := [ ];
           for i in [1..#crys] do
                word := crys[i][2];
@@ -351,14 +375,14 @@ assert NormalizesMatrixAlgebra (L, [D]);  // sanity check
      
      for g0 in gens0 do
           if Rank (g0) lt Rank (C) then
-               "graph automorphism did not lift at all";
+               "...graph auto did not lift at all";
           else
                g := C^-1 * G!g0 * C;
                if NormalizesMatrixAlgebra (L, [g]) then
                     Append (~gens, g);
-                    "added a graph automorphism";
+                    "...added a graph auto";
                else
-                    "graph automorphism did not normalize L";
+                    "...graph auto did not normalize L";
                end if;
           end if;
      end for;
