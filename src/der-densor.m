@@ -3,6 +3,9 @@
     Distributed under GNU GPLv3.
 */
 
+import "isom-test.m" : __IsIsometric_ND;
+
+
 __der_densor := function(s) 
   // Step 1: Remove radicals. 
   printf "Removing the radicals.\n";
@@ -49,10 +52,38 @@ __der_densor := function(s)
   end if;
 
   // Step 3b: Pre-condition D_W for normalizer computation. 
+  printf "Computing a Chevalley basis.\n";
+  try
+    E, F, H := ChevalleyBasis(D_W);
+  catch err
+    printf "Something happened when computing a Chevalley basis.\n";
+    printf "Here is the error:\n%o\n", err`object;
+  end try;
 
-  // Step 3c: Get the derivation normalizer.
+  // Step 3c: Get the derivation normalizer on W.
+  printf "Computing the normalizer of the derivation algebra.\n";
+  N := SimilaritiesOfSimpleLieModule(type, D_W : E := E, F := F);
 
-  // Step 4: Compute stabilizer of densor space.
+  // Step 4a: If densor is 1-dimensional, we're done!
+  if Dimension(densor) eq 1 then
+    gens := [];
+    for Y in Generators(N) do
+      Forms_20 := AsMatrices(t, 2, 0);
+      t_Y := Tensor([M*Y : M in Forms_20], 2, 0, t`Cat);
+      isit, X := __IsIsometric_ND(t, t_Y);
+      assert isit;
+      Append(~gens, <X, Y>);
+    end for;
+  else
+    // Step 4b: Lift normalizer on W to normalizer of Der. 
+
+    // Step 5: Compute stabilizer of densor space.
+
+  end if;
+
+  // Step 6: Include isometries.
+
+  // Step 7: Deal with any radicals.
 
   return 0;
 end function;
