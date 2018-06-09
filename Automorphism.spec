@@ -3,6 +3,7 @@
   {
   	GlobalVars.m
   	DerAuto.m
+    der-densor.m
   	isom-test.m
   	auto.m
   	inv-norm.m

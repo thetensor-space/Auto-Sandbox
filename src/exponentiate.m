@@ -8,6 +8,7 @@
 /*---- a substantial derivation algebra. RETURN TO THIS SOON.    ----*/
 /*-------------------------------------------------------------------*/
 
+
 /*
   Input: a tensor of p-group, G, of p-class 2, having p-central series
             G > Z > 1
@@ -20,6 +21,8 @@
     (6) The group of pseudo-isometries and central automorphisms.
 */
 
+
+/*
 intrinsic ExponentiateDerivations(T::TenSpcElt) -> GrpMat
 { Exponentiates the derivation algebra. }
 
@@ -59,8 +62,7 @@ vprint Autotopism, 2 : "[INFO]   Dim(DerT) =", Dimension (DerT);
   UDerTW := sub < MatrixAlgebra (k, e) | [ Matrix (DerTW.i) : 
                           i in [1..Ngens (DerTW)] ] >;
                   
-        
-    /*----- added by PAB at Oberwolfach: exponentiate what we can from Rad(DerT) -----*/
+     
     J := NilRadical (DerT);
     N := sub < DerT | [ DerT.i * J.j : i in [1..Ngens (DerT)], j in [1..Ngens (J)] ] >;
     basN := Basis (N);
@@ -77,7 +79,7 @@ vprint Autotopism, 2 : "[INFO]   Dim(DerT) =", Dimension (DerT);
         vprint Autotopism, 2 : "nilpotence degree exceeded characteristic";
       end if;
     end for;
-    /*---------------------------------------*/
+
                           
   MDW := RModule (UDerTW);
 vprint Autotopism, 2 : "[INFO]   Dim(DerTW) =", Dimension (DerTW);
@@ -230,12 +232,6 @@ DerWIrred := true;
 DerWIrred := false;
 vprint Autotopism, 1 : "  [WARNING]   LW acts reducibly on W";
 
-      /* 
-         Added by PAB in Oberwolfach. 
-         I've hacked this for now, but we should restrict to a 
-         submodule upon which LW acts faithfully and irreducibly.
-         Do this up top, actually.
-      */  
 try
 vprint Autotopism, 1 : "\t[INFO] Attempting to compute a Chevalley Basis";
       X, Y, H := ChevalleyBasis (LW);
@@ -250,9 +246,7 @@ end try;
       U := X cat Y;
       vprint Autotopism, 2 : "  [INFO]   ad-nilpotent matrices", #X + #Y;
       vprint Autotopism, 2 : "  [INFO]   Dim(Cartan) =", #H;
-  
       
-    
       end if;  
 
       // pull U back into L and exponentiate
@@ -276,7 +270,6 @@ end try;
   // exponentiate the nilpotent elements to get pseudo-isometries
   gens := [ __exp (n) : n in NIL ]; 
   
-  /* added by PAB in Oberwolfach ... add in the unipotent elements */
   gens cat:= UJ;
   
   Vgens := [ ExtractBlock (gens[i], 1, 1, d, d) : i in [1..#gens] ];
@@ -304,6 +297,7 @@ end try;
 return H;
 
 end intrinsic;
+*/
 
 /*
   ----------
@@ -339,4 +333,34 @@ end intrinsic;
   (4) Put in the other possible generators for the group induced by Aut(G)
       on W, and use Ivanyos-Qiao to see which ones lift to pseudo-isometries.
 */
+
+
+intrinsic BruteForceNormalizer (G::GrpMat, X::ModMatFld) -> GrpMat
+  { The subgroup of G normalizing U. }
+  
+  MS := Generic (X);
+  B := Basis (MS);
+  assert forall { i : i in [1..#B] | B[i] eq MS.i }; 
+  d := Degree (G);
+  assert Dimension (MS) eq d^2;
+  V := VectorSpace (BaseRing (G), d^2);
+  GLV := GL (d^2, BaseRing (G));
+  f := hom < MS -> V | [ V.i : i in [1..Ngens (V)] ] >;
+  U := X @ f;
+  
+  // compute action of G on MS
+  gens := [ ];
+  for s in [1..Ngens (G)] do
+      rows := [ ( G.s^-1 * B[i] * G.s ) @ f : i in [1..#B] ];
+      Append (~gens, GLV!Matrix (rows));
+  end for;
+  GV := sub < GLV | gens >;
+"computed the conjugation action of G";
+  
+"computing stabiliser of X under this action ...";
+  S := Stabiliser (GV, U);
+"...done";
+  
+return S;
+end intrinsic;
 
