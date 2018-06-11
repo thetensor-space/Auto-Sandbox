@@ -75,4 +75,4 @@ isit, L := HasLeviSubalgebra (D);
 E, F, H := ChevalleyBasis (L);
 "|E| =", #E, "    |H| =", #H;
 */
- 
+

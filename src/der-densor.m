@@ -18,9 +18,16 @@ __der_densor := function(s)
   printf "\tdim(Rad_W) = %o\n", Dimension(R0);
   T0 := Matrix(Basis(C0) cat Basis(R0));
   F := SystemOfForms(s);
-  Forms := [T2*X*Transpose(T2) : X in F];
-  Forms := [&+[T0[i][j]*Forms[i] : i in [1..#Forms]] : j in [1..#Forms]];
-  t := Tensor(Forms, 2, 1, s`Cat);
+  if Dimension(R2) gt 0 or Dimension(R0) gt 0 then
+    Forms := [T2*X*Transpose(T2) : X in F];
+    Forms := [&+[T0[i][j]*Forms[i] : i in [1..#Forms]] : j in [1..#Forms]];
+    Forms := [ExtractBlock(X, 1, 1, Dimension(C2), Dimension(C2)) : 
+      X in Forms][1..Dimension(C0)];
+    t := Tensor(Forms, 2, 1, s`Cat);
+  else
+    t := s; // This keeps all the previous calculations saved.
+  end if;
+  K := BaseRing(t);
 
   // Step 2: Get the densor subspace.
   printf "Computing derivation algebra.\n";
@@ -33,7 +40,7 @@ __der_densor := function(s)
   D_V := Induce(D, 2);
   D_W := Induce(D, 0);
   printf "Computing the densor subspace.\n";
-  densor := DerivationClosure(Parent(t), t);
+  densor := UniversalDensorSubspace(t); // MAIN BOTTLENECK
   printf "\tdim(densor) = %o\n", Dimension(densor);
 
   // Step 3a: Check derivation algebra.
@@ -42,16 +49,16 @@ __der_densor := function(s)
   try
     type := SemisimpleType(SS);
   catch err
-    printf "Cannot recognize the semi-simple structure of derivation algebra. ";
+    printf "Cannot recognize the semi-simple structure of derivation algebra.";
     printf "Aborting.\n";
     return 0;
   end try;
+
   if not IsSimple(SS) then
     printf "Semi-simple part is not simple. Code not implemented. Aborting.\n";
     return 0;
   end if;
 
-  // Step 3b: Pre-condition D_W for normalizer computation. 
   printf "Computing a Chevalley basis.\n";
   try
     E, F, H := ChevalleyBasis(D_W);
@@ -62,19 +69,34 @@ __der_densor := function(s)
 
   // Step 3c: Get the derivation normalizer on W.
   printf "Computing the normalizer of the derivation algebra.\n";
+  printf "==== Output from SimilaritiesOfSimpleLieModule ================================\n";
   N := SimilaritiesOfSimpleLieModule(type, D_W : E := E, F := F);
+  printf "===============================================================================\n";
 
   // Step 4a: If densor is 1-dimensional, we're done!
   if Dimension(densor) eq 1 then
+    printf "Lifting derivation normalizer to autotopisms.\n";
     gens := [];
     for Y in Generators(N) do
       Forms_20 := AsMatrices(t, 2, 0);
-      t_Y := Tensor([M*Y : M in Forms_20], 2, 0, t`Cat);
-      isit, X := __IsIsometric_ND(t, t_Y);
-      assert isit;
-      Append(~gens, <X, Y>);
+      t_Y := Tensor([M*Matrix(Y) : M in Forms_20], 2, 0, t`Cat);
+      for i in [1..10] do
+        u := Random(t`Domain[1]);
+        v := Random(t`Domain[2]);
+        assert (u*t*v)*Y eq u*t_Y*v;
+      end for;
+//      isit, X := __IsIsometric_ND(t, t_Y);
+//      assert isit;
+      // This might be the *worst* way to do this...
+      assert exists(k){k : k in K | IsInvertible(k) and __IsIsometric_ND(t, k*t_Y)};
+      _, X := __IsIsometric_ND(t, k*t_Y);
+      Append(~gens, <X, k*Matrix(Y)>);
     end for;
   else
+    printf "Densor is not 1-dimenisonal; code is not yet implemented. ";
+    printf "Aborting.\n";
+    return 0;
+
     // Step 4b: Lift normalizer on W to normalizer of Der. 
 
     // Step 5: Compute stabilizer of densor space.
@@ -82,10 +104,42 @@ __der_densor := function(s)
   end if;
 
   // Step 6: Include isometries.
+  printf "Constructing the isometry group.\n";
+  I := IsometryGroup(SystemOfForms(t) : DisplayStructure := false); // Maybe we'll eventually get Adj from Der
+  isom := [<X, GL(t`Codomain)!1> : X in Generators(I)];
 
   // Step 7: Deal with any radicals.
+  if (Dimension(R2) gt 0) or (Dimension(R0) gt 0) then
+    rads := [<DiagonalJoin(GL(C2)!1, x)*T2^-1, GL(s`Codomain)!1> : 
+      x in Generators(GL(R2))];
+    rads cat:= [<GL(s`Domain[1])!1, T0^-1*DiagonalJoin(GL(C0)!1, x)> :
+      x in Generators(GL(R0))]; 
+    gens := [<DiagonalJoin(x[1], GL(R2)!1)*T2^-1, 
+      T0^-1*DiagonalJoin(x[2], GL(R0)!1)> : x in gens];
+    isom := [<DiagonalJoin(x[1], GL(R2)!1)*T2^-1, 
+      T0^-1*DiagonalJoin(x[2], GL(R0)!1)> : x in isom];
+  else
+    rads := [];
+  end if;
 
-  return 0;
+  // Step 8: Put everything together
+  over_grp := GL(Dimension(Domain(s)[1]) + Dimension(Codomain(s)), K);
+  pi_gens := gens cat isom cat rads;
+  pseudo_isom := sub< over_grp | [DiagonalJoin(x) : x in pi_gens] >;
+  pseudo_isom`DerivedFrom := <s, [1, 3]>;
+
+  // Sanity check
+  printf "Sanity check.\n";
+  for i in [1..10] do
+    X := Random(pseudo_isom);
+    _, pi2 := Induce(pseudo_isom, 2);
+    _, pi0 := Induce(pseudo_isom, 0);
+    if not IsHomotopism(s, s, [*X @ pi2, X @ pi2, X @ pi0*]) then
+      printf "\tWARNING: did not pass sanity test! Something is wrong.\n";
+    end if;
+  end for;
+
+  return pseudo_isom;
 end function;
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

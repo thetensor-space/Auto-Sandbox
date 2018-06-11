@@ -442,7 +442,8 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   // Add exp(L) where Der(T)=L+N a Levi decomposition.------------------------------------
   try
 	  vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
-  	Subgroup := ExponentiateDerivations(T);
+//  	Subgroup := ExponentiateDerivations(T);
+    Subgroup := IsometryGroup(T); // No more ExponentiateDerivations. I Put this in as filler. -Josh
   catch e
   	vprint Autotopism, 1 : "Lie algebra methods not fully supported for this tensor";//, e;
   end try;
