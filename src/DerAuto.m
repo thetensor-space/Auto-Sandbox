@@ -274,10 +274,10 @@ return C, A;
 end intrinsic;
 
 
+
 /*
-   INPUT: 
-      (1) name of the acting Lie algebra 
-      (2) an irreducible representation L of the simple Lie algebra
+   INPUT:  
+      (1) a representation of the semisimple Lie algebra L
           of type A and Lie rank d
       (3) the subset E of a Chevalley basis of L corresponding to
           the positive fundamental roots; we assume these have been
@@ -289,7 +289,6 @@ end intrinsic;
            is also the normalizer of L in its ambient group of linear 
            transformations. 
    
-   ***** AT PRESENT THIS IS ONLY IMPLEMENTED FOR TYPE A LIE ALGEBRAS *****
 */
 
 intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie :
@@ -302,11 +301,12 @@ intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie :
       /* TO DO---insert graph auto perm for "name" */
      
      G := GL (Degree (L), k);
+     /* if we somehow
      if #E eq 0 then
           E, F := ChevalleyBasis (L);
      end if;
      assert #E ge r;
-       /* TO DO---make sure the first r elements correspond to fundamental roots */
+       /* TO DO---check that the first r elements correspond to fundamental roots */
      E := [ E[i] : i in [1..r] ];
      F := [ F[i] : i in [1..r] ];
      C, crys := CrystalBasis (L, E, F);
@@ -398,6 +398,80 @@ assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity
 return N;
 
 end intrinsic;
+
+
+/*
+   INPUT:  
+      (1) a semisimple matrix Lie algebra L, i.e. a semisimple Lie
+          algebra faithfully represented on V x W.
+      (2) the subset E of a Chevalley basis of L corresponding to
+          the positive fundamental roots; we assume these have been
+          obtained somehow (e.g. Ryba's algorithms in theory; whatever
+          is in Magma in practice).
+      (3) the opposite part of F of the Chevalley basis.
+      (4) the dimension, d, of V.
+   
+   OUTPUT: the subgroup of Aut(U) x Aut(V) normalizing L.  
+*/
+
+__annihilates := function (J, U)
+return forall { i : i in [1..Ngens (J)] | forall { t : t in [1..Ngens (U)] |
+          U.t * J.i eq 0 } };
+end function;
+
+intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
+                E := [ ], F := [ ]) -> GrpMat
+{ Construct the group of similarites of the given (completely reducible) representation.}
+       
+     flag, LL := HasLeviSubalgebra (L);
+     require (flag and (L eq LL)): "L must be a semisimple algebra";
+                                        
+     k := BaseRing (L);
+     n := Degree (L);
+     X := VectorSpace (k, n);
+     V := sub < X | [ X.i : i in [1..d] ] >;
+     W := sub < X | [ X.i : i in [d+1..n] ] >;
+        
+     M := RModule (L);
+     inds := IndecomposableSummands (ML);
+     inds := [ sub < X | [ Vector (ML!(S.i)) : i in [1..Dimension (S)] ] > : S in inds ];
+     ideals := IndecomposableSummands (L);
+     // make sure each indecomposable summand corresponds to exactly one ideal.
+     flag := forall { U : U in inds | 
+                          #{ J : J in ideals | not __annihilates (J, U) } le 1 };
+     if not flag then
+     error "the code does not yet handle irreducibles whose ideal is not simple";
+     end if;
+     
+     // organize the summands into those within V and those within W
+     Vsubs := < >;
+     Wsubs := < >;
+     for U in inds do
+         if U subset V then
+             Append (~Vsubs, U);
+         else
+             assert U subset W;
+             Append (~Wsubs, U);
+         end if;
+     end for;
+
+     // within this basic division collect together summands according to ideal
+     nVsubs := [ ];
+     nWsubs := [ ];
+     for J in ideals do
+          nVsubs cat:= [ U : U in Vsubs | not __annihilates (J, U) ];
+          nWsubs cat:= [ U : U in Wsubs | not __annihilates (J, U) ];
+     end for; 
+//     assert #nVsubs eq #Vsubs;
+//     assert #nWsubs eq #Wsubs; 
+     C := Matrix ((&cat [ Basis (U) : U in Vsubs ]) cat 
+                   &cat [ Basis (U) : U in Wsubs ]);
+     
+     LC := sub < Generic (L) | [ C * Matrix (L.i) * C^-1 : i in [1..Ngens (L)] ] >;   
+     
+return LC;     
+end intrinsic;
+
 
 
 

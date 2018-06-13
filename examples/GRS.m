@@ -76,3 +76,30 @@ E, F, H := ChevalleyBasis (L);
 "|E| =", #E, "    |H| =", #H;
 */
 
+
+// example of block matrix Lie algebras to test code with
+k := GF (7);
+Vblocks := [ 2 , 3 ];
+d := &+ Vblocks;
+Wblocks := [ 2 , 2 ];
+e := &+ Wblocks;
+gens := [ ];
+ML := MatrixLieAlgebra (k, d+e);
+for i in [1,2] do
+  x := DiagonalJoin(< Random (MatrixAlgebra (k, a)) : a in Vblocks >);
+  y := DiagonalJoin(< Random (MatrixAlgebra (k, b)) : b in Wblocks >);
+  Append (~gens, ML!DiagonalJoin (x, y));
+end for;
+A := sub < ML | gens >;
+RA := NilRadical (A);
+"dim(A) =", Dimension (A);
+"dim(RA) =", Dimension (R);
+isit, L := HasLeviSubalgebra (A);
+"dim(L) =", Dimension (L);
+RL := NilRadical (L);
+"dim(RL) =", Dimension (RL);
+
+
+
+
+
