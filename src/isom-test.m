@@ -943,6 +943,9 @@ intrinsic PrincipalIsotopismGroup (T::TenSpcElt) -> GrpMat
   end for;
   
   PRIN := sub < GL (c + d + e, BaseRing (T)) | gens >;
+
+  // Added by JM to enable 'Induce' on PRIN
+  PRIN`DerivedFrom := <T, [1..3]>;
   
 return PRIN;
   

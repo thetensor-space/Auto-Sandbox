@@ -233,8 +233,17 @@ F4Module := function(q)
   return Der;
 end function;
 
-
-
+// Returns a tensor from the Heisenberg group over the local algebra 
+// A = K[x]/(a(x)^c), where a is irreducible in K[x] and c > 1. 
+// Here g is the codimension of the central factor in A. 
+LocalHeisenberg := function(g, a, c)
+  P := Parent(a); 
+  I := ideal< P | a^c >;
+  t := Tensor(P/I);
+  F := SystemOfForms(t);
+  Forms := F[#F-g+1..#F];
+  return Tensor(Forms, 2, 1);
+end function;
 
 
 
