@@ -128,7 +128,7 @@ __der_densor := function(s)
     for X in Generators(N) do
       Forms := [(X @ projs[1])*F*Transpose(X @ projs[2]) : 
         F in SystemOfForms(t)];
-      Forms := [&+[(X @ projs[3])[i][j]*F[i] : i in [1..#Forms]] : 
+      Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
         j in [1..#Forms]];
       t_X := Tensor(Forms, 2, 1, t`Cat);
       k := Eltseq(t_X)[ind]^-1*Eltseq(t)[ind]^-1;
