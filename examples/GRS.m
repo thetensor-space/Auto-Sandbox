@@ -78,10 +78,10 @@ E, F, H := ChevalleyBasis (L);
 
 
 // example of block matrix Lie algebras to test code with
-k := GF (7);
-Vblocks := [ 2 , 3 ];
+k := GF (5);
+Vblocks := [ 2 , 2 , 2 ];
 d := &+ Vblocks;
-Wblocks := [ 2 , 2 ];
+Wblocks := [ 3 , 3 ];
 e := &+ Wblocks;
 gens := [ ];
 ML := MatrixLieAlgebra (k, d+e);
@@ -93,11 +93,17 @@ end for;
 A := sub < ML | gens >;
 RA := NilRadical (A);
 "dim(A) =", Dimension (A);
-"dim(RA) =", Dimension (R);
-isit, L := HasLeviSubalgebra (A);
-"dim(L) =", Dimension (L);
-RL := NilRadical (L);
-"dim(RL) =", Dimension (RL);
+"dim(RA) =", Dimension (RA);
+isit, L0 := HasLeviSubalgebra (A);
+"dim(L0) =", Dimension (L0);
+RL0 := NilRadical (L0);
+"dim(RL0) =", Dimension (RL0);
+
+// scramble
+g := Random (GL (d, k));   h := Random (GL (e, k));
+x := DiagonalJoin (g, h);
+L := sub < Generic (L0) | [ x * Matrix (L0.i) * x^-1 : i in [1..Ngens (L0)] ] >;
+
 
 
 
