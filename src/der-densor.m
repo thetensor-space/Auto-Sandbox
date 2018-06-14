@@ -89,11 +89,29 @@ __der_densor := function(s)
     return 0;
   end try;
 
+  printf "Computing the Levi decomposition.\n";
+  try
+    hasLevi, L := HasLeviSubalgebra(D);
+    if not hasLevi then
+      printf "Cannot find a Levi decomposition. Aborting.\n";
+      return 0;
+    end if;
+  catch err
+    printf "Something happened when constructing a Levi decomposition.\n";
+    printf "Here is the error:\n%o\n", err`Object;
+    return 0;
+  end try;
+
   // Step 3c: Get the derivation normalizer.
+  if {2, 1} notin rp and {2, 1, 0} notin rp then
+    printf "Code only works for tensors with frame U2 x U2 >-> U0. Aborting.\n";
+    return 0;
+  end if;
   printf "Computing the normalizer of the derivation algebra.\n";
   printf "==== Output from SimilaritiesOfSimpleLieModule ";
   printf "================================\n";
-  N := SimilaritiesOfSimpleLieModule(type, D : E := E, F := F);
+  N := SimilaritiesOfSemisimpleLieModule(L, Dimension(Domain(t)[1]) : 
+    E := E, F := F, H := H);
   printf &cat["=" : i in [1..79]] cat "\n";
   N`DerivedFrom := <t, indices>; // enables application of 'Induce'. 
   projs := [**];
@@ -156,6 +174,8 @@ __der_densor := function(s)
     isom := [<DiagonalJoin(x[1], GL(R[1])!1)*T[1]^-1, 
       DiagonalJoin(x[2], GL(R[2])!1)*T[2]^-1, 
       T[3]^-1*DiagonalJoin(x[3], GL(R[3])!1)> : x in isom];
+    unip := []; // ADD THESE
+    printf "WARNING: Unipotent not added yet.";
     pi_gens := gens cat isom cat rads;
   else
     pi_gens := gens cat isom;

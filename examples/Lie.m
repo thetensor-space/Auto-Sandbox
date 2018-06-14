@@ -161,6 +161,12 @@ G2Module := function(q)
   return L;
 end function;
 
+SmallestG2Module(q)
+  L := G2Module(q);
+  CT := ExteriorCotensorSpace(VectorSpace(GF(q), 7), 2);
+  t := AsTensor(CT);
+end function;
+
 
 // 28-dimensional D4 module
 D4Module := function(q)
