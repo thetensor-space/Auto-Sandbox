@@ -133,14 +133,34 @@ __der_densor := function(s)
       Append(~gens, <X @ projs[1], X @ projs[2], k*Matrix(X @ projs[3])>);
     end for;
   else
-    printf "Densor is not 1-dimenisonal; code is not yet implemented. ";
-    printf "Aborting.\n";
-    return 0;
-
     // Step 4b: Get action of N on the densor. 
+    printf "Constructing the action of the normalizer on the densor.\n";
+    gens_N := [x : x in Generators(N)];
+    gens_action := [];
+    V := densor`Mod;
+    for X in gens_N do
+      mat := [];
+      for b in Basis(V) do
+        Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
+          F in SystemOfForms(densor!Eltseq(b @ densor`UniMap))];
+        Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
+          j in [1..#Forms]];
+        b_X := Tensor(Forms, 2, 1, t`Cat);
+        Append(~mat, Coordinates(V, V!Eltseq(b_X)));
+      end for;
+      Append(~gens_action, Matrix(mat));
+    end for;
+    N_action := sub< GL(Dimension(densor), K) | gens_action >;
 
     // Step 5: Compute stabilizer of densor space.
-
+    printf "Computing the stabilizer of the tensor in the densor.\n";
+    t_vector := VectorSpace(K, Dimension(densor))!Coordinates(V, V!Eltseq(t));
+    St := Stabilizer(N_action, t_vector);
+    phi := hom< N -> N_action | [<gens_N[i], gens_action[i]> : 
+      i in [1..#gens_N]] >;
+    Stab := St @@ phi;
+    gens := [<X @ projs[1], X @ projs[2], X @ projs[3]> : 
+      X in Generators(Stab)];
   end if;
 
   // Step 6: Include isometries. (These might already be include???)

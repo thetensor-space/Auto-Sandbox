@@ -519,7 +519,7 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      CentW := EndomorphismAlgebra (ModW);
      isit, CWtimes := UnitGroup (CentW); assert isit;
      Cent := DirectProduct (CVtimes, CWtimes);
-"the centraliser of L in GL(V) x GL(W) has order", #Cent;
+//"the centraliser of L in GL(V) x GL(W) has order", #Cent;
      gens := [ Cent.i : i in [1..Ngens (Cent)] ];
      
      II := [ sub < Generic (J) | [ C * Matrix (J.i) *C^-1 : i in [1..Ngens (J)] ] > :
@@ -528,7 +528,7 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      FF := [ C * Matrix (F[i]) * C^-1 : i in [1..#F] ];
      // exponentiate what we can
      gens cat:= [ G!__exp(e) : e in EE ] cat [ G!__exp(f) : f in FF ];
-"after adding connected component, the normalizer has order", #sub<G|gens>;
+//"after adding connected component, the normalizer has order", #sub<G|gens>;
                      
      // try to lift diagonal and graph automorphisms for each minimal ideal  
      posV := 1;
@@ -581,7 +581,7 @@ assert IsIrreducible (RModule (Jis));
               end for;
               D0 := DiagonalMatrix (D0);
               Dis := Cis^-1 * D0 * Cis;
-assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
+//assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
               InsertBlock (~delta, Dis, posV, posV);
               
               // lift graph auto
@@ -637,7 +637,7 @@ assert IsIrreducible (RModule (Jis));
               end for;
               D0 := DiagonalMatrix (D0);
               Dis := Cis^-1 * D0 * Cis;
-assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
+//assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
               InsertBlock (~delta, Dis, posW, posW);
               
               // lift graph auto
@@ -678,7 +678,7 @@ assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
           if not gamma eq Identity (G) then
               Append (~gens, gamma);
 "added gamma =", gamma;
-"normalizer now has order", #sub<G|gens>;
+//"normalizer now has order", #sub<G|gens>;
           end if;
 "---------";
      
@@ -707,18 +707,18 @@ assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
          gens cat:= [ InsertBlock (Identity (MatrixAlgebra (k, n)), GLmW.i, posW, posW) :
                         i in [1..Ngens (GLmW)] ];
      end if;
-"normalizer now has order", #sub<G|gens>;
+//"normalizer now has order", #sub<G|gens>;
       
 // NEED Sn ACTIONS ON ISOTYPIC COMPONENTS     
      
      NN := sub < G | gens >; 
 
-assert NormalizesMatrixAlgebra (LL, [NN.i : i in [1..Ngens (NN)]]); // final sanity check 
+//assert NormalizesMatrixAlgebra (LL, [NN.i : i in [1..Ngens (NN)]]); // final sanity check 
 
      // conjugate back
      N := sub < G | [ C^-1 * gens[i] * C : i in [1..#gens] ] >;    
      
-     assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
+//     assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
      
 return NN, N;     
 end intrinsic;
