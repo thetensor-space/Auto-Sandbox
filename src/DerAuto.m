@@ -510,10 +510,16 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      
      LL := sub < Generic (L) | [ C * Matrix (L.i) * C^-1 : i in [1..Ngens (L)] ] >;
      // start with generators for the centralizer of LL
-     MM := RModule (LL);
-     AA := EndomorphismAlgebra (MM);
-     isit, Cent := UnitGroup (AA); assert isit;
-"centralizer of L has order", #Cent;
+     ModV := RModule (sub< MatrixAlgebra (k, d) | [ ExtractBlock (LL.i, 1, 1, d, d) :
+               i in [1..Ngens (LL)] ] >);
+     CentV := EndomorphismAlgebra (ModV);
+     isit, CVtimes := UnitGroup (CentV); assert isit;
+     ModW := RModule (sub< MatrixAlgebra (k, n-d) | 
+              [ ExtractBlock (LL.i, d+1, d+1, n-d, n-d) : i in [1..Ngens (LL)] ] >);
+     CentW := EndomorphismAlgebra (ModW);
+     isit, CWtimes := UnitGroup (CentW); assert isit;
+     Cent := DirectProduct (CVtimes, CWtimes);
+"the centraliser of L in GL(V) x GL(W) has order", #Cent;
      gens := [ Cent.i : i in [1..Ngens (Cent)] ];
      
      II := [ sub < Generic (J) | [ C * Matrix (J.i) *C^-1 : i in [1..Ngens (J)] ] > :
