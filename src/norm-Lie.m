@@ -1,15 +1,23 @@
-  /*
-    -----------------------------------------------------------------
-    An implementation based on techniques developed in     
-    Groups acting on densors, Brooksbank, Maglione, Wilson (preprint)
-    The overarching goals are automorphism group functions and
-    isomorphism tests for certain p-groups.
-    -----------------------------------------------------------------
-  */
- 
-/* -------------------- subroutines ------------------ */
- 
-__exp := function (z)
+/*
+   This file contains functions to solve the equivalent problems of 
+   computing normalizer / determining conjugacy of matrix Lie algebras, 
+   and determining similarity of Lie modules. These functions are likely
+   to be valuable stand-alone functions, but our main application is to
+   the derivation-densor method of Brooksbank--Maglione--Wilson.
+   
+   At present there does not seem to be a type in Magma such as
+   
+   ModLie
+   
+   That allows computation with modules as Lie modules rather than as
+   modules over the (associative) enveloping algebra. Therefore, the
+   functions here will be presented as "Normalizer" and "Conjugacy"
+   functions rather than as "Similarity" functions.
+*/
+
+           /*----- UTILITY FUNCTIONS -----*/
+           
+EXPONENTIATE := function (z)
 	// Convert to associative product if necessary.
 	if ISA (Type(z), AlgMatLieElt) then 
 		P := Parent (z);
@@ -28,19 +36,7 @@ return u;
 end function;
 
 
-__preimage := function (ms, MS, y)
-    // WHAT DOES IT DO?
-    k := BaseRing (ms);
-    c := Coordinates (MS, MS!y);
-    coords := [];
-    for a in c do
-         coords cat:= Eltseq (a, k);
-    end for;
-return &+[ coords[i] * ms.i : i in [1..Ngens (ms)] ];
-end function;
-
-
-__ReduceToBasis := function (X)
+REDUCE_TO_BASIS := function (X)
     // X contains a basis of the matrix space it spans
     k := BaseRing (Parent (X[1]));
     m := Nrows (X[1]);
@@ -67,31 +63,15 @@ __ReduceToBasis := function (X)
 end function;
 
 
-__CentralAutos := function (p, d, e)
-    // constructs generators for the central automorphisms
-    gens := [];
-    I := IdentityMatrix (GF (p), d + e);
-    for i in [1..d] do
-         for j in [1..e] do
-              A := I;
-              A[i][d+j] := 1;
-              Append (~gens, A);
-         end for;
-    end for;
-    G := GL (d + e, p);
-return [ G!A : A in gens ];
-end function;
- 
-
 /*
     INPUT:
       (1) A, a k-algebra (e.g. Lie or associative) of matrices.
       (2) S, a set of invertible linear transformations of the 
           underlying k-algebra.
     
-    OUTPUT: true if, and only  if, L^S = L
+    OUTPUT: true if, and only  if, A^s = A for all s in S.
 */
-NormalizesMatrixAlgebra := function (A, S)  
+NORMALIZES_ALGEBRA := function (A, S)  
      k := BaseRing (A);
      n := Degree (A);
      MS := KMatrixSpace (k, n, n);
@@ -104,45 +84,18 @@ return forall { s : s in S |
 end function;
 
 
-// Convert GrpAuto of a p-class 2 group to a matrix group.
-// Returns the restriction of Aut(G) on W along with Aut(G).
-AutoToMat := function (A)
-     G := A`Group;
-     assert pClass (G) eq 2;
-     d := Ngens(G); // number of minimal generators
-     ord := Factorization (#G);
-     e := ord[1][2]-d;
-     p := ord[1][1];
-     // basis will be G.1, G.2, ..., G.n.
-     Over := GL (d+e, p);
-     gens := [];
-     for a in Generators (A) do
-         M := [ Eltseq (G.i @ a) : i in [1..d+e] ];
-         Append (~gens, Over!M);
-     end for;
-     Aut_Mat := sub< Over | gens >;
-     Aut_W := sub< GL (e, p) | [ ExtractBlock (x, d+1, d+1, e, e) : x in gens ] >;
-return Aut_W, Aut_Mat;
+ANNIHILATES := function (J, U)
+return forall { i : i in [1..Ngens (J)] | forall { t : t in [1..Ngens (U)] |
+          U.t * J.i eq 0 } };
 end function;
 
 
-// Moved from "exponentiate.m" by PAB on 6/5/2018
-OuterCentralAutomorphisms := function(P,U)
-	T := pCentralTensor(P,1,1);
-print "Computing derivations.";
-	D := DerivationAlgebra(T);
-	H := ExponentiateLieAlgebraSS(D);
-	d := Dimension(Domain(T)[1]);
-	F := BaseRing(T);
-	hreps := [ExtractBlock(h,1,1,d,d) : h in Generators(H)];
-	H1 := sub<GL(d,F) | hreps>;
-	G := ExtendByNormalizer(H1,U);
-	return G;
-end function;
+           /*----- SUBROUTINES & SPECIAL CASES -----*/
 
 
 
-/* -------------------- intrinsics ------------------ */
+           /*----- INTRINSICS -----*/
+
 
 // not sure where this should go, but I could not find it in Magma
 intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt, 
@@ -152,60 +105,6 @@ intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt,
   Eij[i][j] := 1;
 return Eij;
 end intrinsic;
-
-
-intrinsic ExponentiateLieAlgebraSS (L::AlgMatLie) -> GrpMat
-{Return the connected algebraic group of the semisimple Lie algebra of Chevalley type.}
-	// require the L be semisimple for now.
-     G := GL (Degree (L), BaseRing (L));
-	 if Dimension (L) eq 0 then 
-	     return sub<G|[]>; 
-	 end if;		 
-   	 gens := [];
-	 Factors := DirectSumDecomposition (L);
-	 for M in Factors do
-		 vprint Autotopism, 1 : "Computing Chevalley Basis of simple factor by Taylor algorithm.";
-		 try
-			E,F,H := ChevalleyBasis (M);
-			gens cat:= [G!__exp(e) : e in E];
-			gens cat:= [G!__exp(f) : f in F];
-		 catch e
-			// Ignore, Magma only supports some characteristics.
-			vprint Autotopism, 1 : e`Object;
-			vprint Autotopism, 1 : "Chevalley basis could not be computed for factor, skipping";
-		 end try;
-	 end for;
-return sub<G|gens>;
-end intrinsic;
-
-// Josh had this as an intrinsic in "exponentiate.m"
-// Transferred here by PAB on 6/5/2018
-intrinsic ExtendByNormalizer(H::GrpMat,U::ModTup) -> GrpMat
-{}
-	vprint Autotopism, 1 : "Computing normalizer of connected component.";
-	N := GLNormaliser(H);
-	f,NmodH := LMGCosetAction(N,H);
-	vprint Autotopism, 1 : "Searching through ", Order(NmodH), " cosets";
-	EI := [<i @@ f, ExteriorSquare(i @@ f)> : i in NmodH ];
-	V := VectorSpace(BaseRing(H), Binomial(Degree(H),2));
-	W := sub<V|U>;
-	Stab := { x[1] : x in EI | W^x[2] eq W };
-	return sub<N | Generators(H) join Stab>;
-end intrinsic;
-
-
-intrinsic Der (T::TenSpcElt) -> AlgMatLie , LagMatLie , Map
-  {A version of DerivationAlgebra that returns the rep on W.}
-    D := DerivationAlgebra (T);
-    k := BaseRing (D);
-    d := Degree (D);
-    e := Dimension (Codomain (T));
-    gens := [ ExtractBlock (D.i, d-e+1, d-e+1, e, e) : i in [1..Ngens (D)] ];
-    DW := sub < MatrixLieAlgebra (k, e) | gens >;
-    f := hom < D -> DW | x :-> DW!ExtractBlock (x, d-e+1, d-e+1, e, e) >;
-return D, DW, f;
-end intrinsic;
-
 
 
 /* 
@@ -274,151 +173,6 @@ return C, A;
 end intrinsic;
 
 
-
-/*
-   INPUT:  
-      (1) a representation of the semisimple Lie algebra L
-          of type A and Lie rank d
-      (3) the subset E of a Chevalley basis of L corresponding to
-          the positive fundamental roots; we assume these have been
-          obtained somehow (e.g. Ryba's algorithms in theory; whatever
-          is in Magma in practice).
-      (4) the opposite part of F of the Chevalley basis
-   
-   OUTPUT: the group of similarities of the simple Lie algebra rep, which
-           is also the normalizer of L in its ambient group of linear 
-           transformations. 
-   
-*/
-
-intrinsic SimilaritiesOfSimpleLieModule (name::MonStgElt, L::AlgMatLie :
-                    E := [ ] , F := [ ] 
-                                        ) -> GrpMat
-  { Construct the group of similarites of the given representation.}
-
-     k := BaseRing (L);
-     r := Rank (GroupOfLieType (name, k));
-      /* TO DO---insert graph auto perm for "name" */
-     
-     G := GL (Degree (L), k);
-     /* if we somehow
-     if #E eq 0 then
-          E, F := ChevalleyBasis (L);
-     end if;
-     assert #E ge r;
-       /* TO DO---check that the first r elements correspond to fundamental roots */
-     E := [ E[i] : i in [1..r] ];
-     F := [ F[i] : i in [1..r] ];
-     C, crys := CrystalBasis (L, E, F);
-     
-     // compute the connected component of the similarity group by exponentiation
-     X := [G!__exp (a) : a in E];
-     Y := [G!__exp (a) : a in F];
-     gens := X cat Y;
-assert NormalizesMatrixAlgebra (L, gens); // sanity check
-
-     // extract the type of L so that we know which autos to try to lift
-     graph_autos := [ ];
-     if Dimension (L) eq ((r+1)^2 - 1) then
-         type := "A";
-         Append (~graph_autos, Sym (r)![r + 1 - i : i in [1..r] ]);
-     elif Dimension (L) eq (2*r^2 + r) then
-         if Degree (Image (StandardRepresentation (LieAlgebra (name, k)))) mod 2 eq 0 then
-             type := "C";
-         else
-             type := "B";
-         end if;
-     elif Dimension (L) eq (2*r^2 - r) then
-         type := "D";
-         Append (~graph_autos, Sym (r)!(r-1,r));
-         if r eq 4 then
-             Append (~graph_autos, Sym (r)!(1,3,4));
-         end if;
-     else
-         type := "other";
-     end if;
-"name =", name, "    type =", type, "    rank =", r;
-   
-     // build the diagonal automorphism ... NEED TO ADJUST FOR NON-A TYPES?
-     D0 := [ k!1 ];
-     xi := PrimitiveElement (k);
-     S := [ xi ] cat [ k!1 : i in [1..r] ];
-     for i in [2..#crys] do
-          word := crys[i][2];  // the word labelling the i-th node 
-          Append (~D0, &*[ S[word[j]] / S[1+word[j]] : j in [1..#word] ]);
-     end for;
-     D0 := DiagonalMatrix (D0);
-     D := C^-1 * D0 * C;
-assert NormalizesMatrixAlgebra (L, [D]);  // sanity check
-     Append (~gens, D);
-     
-     // build the graph automorphism
-     B := [ Vector (C[i]) : i in [1..Nrows (C)] ];
-
-     V := VectorSpaceWithBasis (B);
-     gens0 := [ ];
-"trying to lift", #graph_autos, "graph auto(s)...";
-     for s in graph_autos do
-          g0 := [ ];
-          for i in [1..#crys] do
-               word := crys[i][2];
-               gword := [ word[j]^s : j in [1..#word] ];           
-               vec := V.1;
-               for j in [1..#gword] do  
-                    vec := vec * F[gword[j]];
-               end for;
-               Append (~g0, Coordinates (V, vec));
-          end for;
-          g0 := Matrix (g0);
-          Append (~gens0, g0);
-     end for;
-     
-     for g0 in gens0 do
-          if Rank (g0) lt Rank (C) then
-               "...graph auto did not lift at all";
-          else
-               g := C^-1 * G!g0 * C;
-               if NormalizesMatrixAlgebra (L, [g]) then
-                    Append (~gens, g);
-                    "...added a graph auto";
-               else
-                    "...graph auto did not normalize L";
-               end if;
-          end if;
-     end for;
-
-     Z := [ xi : i in [1..Degree (G)] ];
-     Z := G!DiagonalMatrix (Z);
-     Append (~gens, Z);
-
-     N := sub < GL (Degree (L), k) | gens >;
-    
-assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
-
-return N;
-
-end intrinsic;
-
-
-/*
-   INPUT:  
-      (1) a semisimple matrix Lie algebra L, i.e. a semisimple Lie
-          algebra faithfully represented on V x W.
-      (2) the subset E of a Chevalley basis of L corresponding to
-          the positive fundamental roots; we assume these have been
-          obtained somehow (e.g. Ryba's algorithms in theory; whatever
-          is in Magma in practice).
-      (3) the opposite part of F of the Chevalley basis.
-      (4) the dimension, d, of V.
-   
-   OUTPUT: the subgroup of Aut(U) x Aut(V) normalizing L.  
-*/
-
-__annihilates := function (J, U)
-return forall { i : i in [1..Ngens (J)] | forall { t : t in [1..Ngens (U)] |
-          U.t * J.i eq 0 } };
-end function;
-
 intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
                 E := [ ], F := [ ], H := [ ]) -> GrpMat
 { Construct the group of similarites of the given (completely reducible) representation.}
@@ -447,9 +201,9 @@ intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
      indX := [ sub < X | [ Vector (M!(S.i)) : i in [1..Dimension (S)] ] > : S in indM ];
      
      // first insert indecomposable summands upon which L acts trivially
-     V0subs := < U : U in indX | __annihilates (L, U) and (U subset V) >;
+     V0subs := < U : U in indX | ANNIHILATES (L, U) and (U subset V) >;
 "V0dims:", [ Dimension (U) : U in V0subs ];
-     W0subs := < U : U in indX | __annihilates (L, U) and (U subset W) >;
+     W0subs := < U : U in indX | ANNIHILATES (L, U) and (U subset W) >;
 "W0dims", [ Dimension (U) : U in W0subs ];
      mV0 := 0;    mW0 := 0;
      if (#V0subs gt 0) then
@@ -463,7 +217,7 @@ intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
 "mV0 =", mV0;
 "mW0 =", mW0;
      
-     indX := [ U : U in indX | not __annihilates (L, U) ];
+     indX := [ U : U in indX | not ANNIHILATES (L, U) ];
 "there are", #indX, "indecomposable summands that are not annihilated by L   ",
 [ Dimension (U) : U in indX ];
      
@@ -474,7 +228,7 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      // support to be one single minimal ideal
      ideals := IndecomposableSummands (L);
      require forall { U : U in indX | 
-                #{ J : J in ideals | not __annihilates (J, U) } le 1 } :
+                #{ J : J in ideals | not ANNIHILATES (J, U) } le 1 } :
         "each summand of X must be an irreducible module for a minimal ideal of L";
         
      // collect together summands of V and W according to ideal
@@ -484,7 +238,7 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
          J := ideals[i];
          mJV := [ ];   mJW := [ ];
          for U in indX do
-             if not __annihilates (J, U) then
+             if not ANNIHILATES (J, U) then
                  if U subset V then
                      Append (~Vsubs, U);
                      Append (~mJV, Dimension (U));
@@ -512,12 +266,10 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      // start with generators for the centralizer of LL
      ModV := RModule (sub< MatrixAlgebra (k, d) | [ ExtractBlock (LL.i, 1, 1, d, d) :
                i in [1..Ngens (LL)] ] >);
-"dim(ModV) =", Dimension (ModV);
      CentV := EndomorphismAlgebra (ModV);
      isit, CVtimes := UnitGroup (CentV); assert isit;
      ModW := RModule (sub< MatrixAlgebra (k, n-d) | 
               [ ExtractBlock (LL.i, d+1, d+1, n-d, n-d) : i in [1..Ngens (LL)] ] >);
-"dim(ModW) =", Dimension (ModW);
      CentW := EndomorphismAlgebra (ModW);
      isit, CWtimes := UnitGroup (CentW); assert isit;
      Cent := DirectProduct (CVtimes, CWtimes);
@@ -529,7 +281,7 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      EE := [ C * Matrix (E[i]) * C^-1 : i in [1..#E] ];
      FF := [ C * Matrix (F[i]) * C^-1 : i in [1..#F] ];
      // exponentiate what we can
-     gens cat:= [ G!__exp(e) : e in EE ] cat [ G!__exp(f) : f in FF ];
+     gens cat:= [ G!EXPONENTIATE(e) : e in EE ] cat [ G!EXPONENTIATE(f) : f in FF ];
 //"after adding connected component, the normalizer has order", #sub<G|gens>;
                      
      // try to lift diagonal and graph automorphisms for each minimal ideal  
@@ -583,7 +335,7 @@ assert IsIrreducible (RModule (Jis));
               end for;
               D0 := DiagonalMatrix (D0);
               Dis := Cis^-1 * D0 * Cis;
-//assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
+//assert NORMALIZES_ALGEBRA (Jis, [Dis]);  // sanity check
               InsertBlock (~delta, Dis, posV, posV);
               
               // lift graph auto
@@ -603,7 +355,7 @@ assert IsIrreducible (RModule (Jis));
                   g0 := Matrix (g0);
                   if Rank (g0) eq Rank (Cis) then
                       g := Cis^-1 * GL (Nrows (g0), k)!g0 * Cis;
-                      if NormalizesMatrixAlgebra (Jis, [g]) then
+                      if NORMALIZES_ALGEBRA (Jis, [g]) then
                           InsertBlock (~gamma, Dis, posV, posV);
                       else
 "   (graph auto did not lift to summand)"; 
@@ -639,7 +391,7 @@ assert IsIrreducible (RModule (Jis));
               end for;
               D0 := DiagonalMatrix (D0);
               Dis := Cis^-1 * D0 * Cis;
-//assert NormalizesMatrixAlgebra (Jis, [Dis]);  // sanity check
+//assert NORMALIZES_ALGEBRA (Jis, [Dis]);  // sanity check
               InsertBlock (~delta, Dis, posW, posW);
               
               // lift graph auto
@@ -659,7 +411,7 @@ assert IsIrreducible (RModule (Jis));
                   g0 := Matrix (g0);
                   if Rank (g0) eq Rank (Cis) then
                       g := Cis^-1 * GL (Nrows (g0), k)!g0 * Cis;
-                      if NormalizesMatrixAlgebra (Jis, [g]) then
+                      if NORMALIZES_ALGEBRA (Jis, [g]) then
                           InsertBlock (~gamma, Dis, posV, posV);
                       else
 "   (graph auto did not lift to summand)"; 
@@ -715,18 +467,13 @@ assert IsIrreducible (RModule (Jis));
      
      NN := sub < G | gens >; 
 
-//assert NormalizesMatrixAlgebra (LL, [NN.i : i in [1..Ngens (NN)]]); // final sanity check 
+//assert NORMALIZES_ALGEBRA (LL, [NN.i : i in [1..Ngens (NN)]]); // final sanity check 
 
      // conjugate back
      N := sub < G | [ C^-1 * gens[i] * C : i in [1..#gens] ] >;    
      
-//     assert NormalizesMatrixAlgebra (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
+//     assert NORMALIZES_ALGEBRA (L, [N.i : i in [1..Ngens (N)]]); // final sanity check
      
 return NN, N;     
 end intrinsic;
-
-
-
-
-
 

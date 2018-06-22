@@ -44,6 +44,19 @@ __der_densor := function(s)
 
   // Step 3a: Get derivation algebra only on relevant coordinates.
   rp := RepeatPartition(TensorCategory(t));
+  //////////////////////////////////////////////////////////////////////////////
+  // TEMP FIX UNTIL MORE GENERAL FUNCTION:
+  if rp eq {{2, 1, 0}} then 
+    printf "Tensor category fuses 0, 1, and 2. \n";
+    printf "At the moment, we need exactly two components. \n";
+    printf "Changing tensor categories.\n";
+    Cat := s`Cat;
+    Cat`Repeats := {{0}, {1, 2}};
+    ChangeTensorCategory(~s, Cat);
+    ChangeTensorCategory(~t, Cat);
+    rp := Cat`Repeats;
+  end if;
+  //////////////////////////////////////////////////////////////////////////////
   if rp ne {{0}, {1}, {2}} then
     dims := [];
     indices := [];
@@ -65,30 +78,6 @@ __der_densor := function(s)
   end if;
 
   // Step 3b: Check derivation algebra.
-  R := SolvableRadical(D); 
-  SS := D/R;
-  if Dimension(SS) eq 0 then
-    printf "Solvable Lie algebra. ";
-    printf "Code for this case hasn't been implemented yet. Aborting.\n";
-    return 0;
-  end if;
-  try
-    type := SemisimpleType(SS);
-  catch err
-    printf "Cannot recognize the semi-simple structure of derivation algebra.";
-    printf "Aborting.\n";
-    return 0;
-  end try;
-
-  printf "Computing a Chevalley basis.\n";
-  try
-    E, F, H := ChevalleyBasis(D);
-  catch err
-    printf "Something happened when computing a Chevalley basis.\n";
-    printf "Here is the error:\n%o\n", err`Object;
-    return 0;
-  end try;
-
   printf "Computing the Levi decomposition.\n";
   try
     hasLevi, L := HasLeviSubalgebra(D);
@@ -98,6 +87,15 @@ __der_densor := function(s)
     end if;
   catch err
     printf "Something happened when constructing a Levi decomposition.\n";
+    printf "Here is the error:\n%o\n", err`Object;
+    return 0;
+  end try;
+
+  printf "Computing a Chevalley basis.\n";
+  try
+    E, F, H := ChevalleyBasis(L);
+  catch err
+    printf "Something happened when computing a Chevalley basis.\n";
     printf "Here is the error:\n%o\n", err`Object;
     return 0;
   end try;
@@ -124,25 +122,45 @@ __der_densor := function(s)
   if Dimension(densor) eq 1 then
     printf "Lifting derivation normalizer to autotopisms.\n";
     gens := [];
-    assert exists(ind){k : k in [1..#Eltseq(t)] | IsInvertible(k)};
+    assert exists(ind){k : k in [1..#Eltseq(t)] | IsInvertible(Eltseq(t)[k])};
     for X in Generators(N) do
-      Forms := [(X @ projs[1])*F*Transpose(X @ projs[2]) : 
+      Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
         F in SystemOfForms(t)];
       Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
         j in [1..#Forms]];
       t_X := Tensor(Forms, 2, 1, t`Cat);
       k := Eltseq(t_X)[ind]^-1*Eltseq(t)[ind]^-1;
-      Append(gens, <X @ projs[1], X @ projs[2], k*Matrix(X @ projs[3])>);
+      Append(~gens, <X @ projs[1], X @ projs[2], k*Matrix(X @ projs[3])>);
     end for;
   else
-    printf "Densor is not 1-dimenisonal; code is not yet implemented. ";
-    printf "Aborting.\n";
-    return 0;
-
     // Step 4b: Get action of N on the densor. 
+    printf "Constructing the action of the normalizer on the densor.\n";
+    gens_N := [x : x in Generators(N)];
+    gens_action := [];
+    V := densor`Mod;
+    for X in gens_N do
+      mat := [];
+      for b in Basis(V) do
+        Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
+          F in SystemOfForms(densor!Eltseq(b @ densor`UniMap))];
+        Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
+          j in [1..#Forms]];
+        b_X := Tensor(Forms, 2, 1, t`Cat);
+        Append(~mat, Coordinates(V, V!Eltseq(b_X)));
+      end for;
+      Append(~gens_action, Matrix(mat));
+    end for;
+    N_action := sub< GL(Dimension(densor), K) | gens_action >;
 
     // Step 5: Compute stabilizer of densor space.
-
+    printf "Computing the stabilizer of the tensor in the densor.\n";
+    t_vector := VectorSpace(K, Dimension(densor))!Coordinates(V, V!Eltseq(t));
+    St := Stabilizer(N_action, t_vector);
+    phi := hom< N -> N_action | [<gens_N[i], gens_action[i]> : 
+      i in [1..#gens_N]] >;
+    Stab := St @@ phi;
+    gens := [<X @ projs[1], X @ projs[2], X @ projs[3]> : 
+      X in Generators(Stab)];
   end if;
 
   // Step 6: Include isometries. (These might already be include???)
@@ -182,7 +200,7 @@ __der_densor := function(s)
   end if;
 
   // Step 8: Put everything together
-  over_grp := GL(&+[Degree(pi_gens[1][i]) : i in [1..3]], K);
+  over_grp := GL(&+[Nrows(pi_gens[1][i]) : i in [1..3]], K);
   pseudo_isom := sub< over_grp | [DiagonalJoin(x) : x in pi_gens] >;
   pseudo_isom`DerivedFrom := <s, [1..3]>;
 
