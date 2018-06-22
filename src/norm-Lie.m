@@ -92,6 +92,61 @@ end function;
 
            /*----- SUBROUTINES & SPECIAL CASES -----*/
 
+// NOTE TO SELF: in semisimple case, decompose first into Ji-modules
+/* returns generators for the lift of Out(J) to GL(V) when J < gl(V) is simple. */
+OUTER_SIMPLE := function (J, E, F)
+
+     assert IsSimple (J);
+     k := BaseRing (J);
+     n := Degree (J);
+     t := SemisimpleType (J);
+     LieType := t[1];
+     LieRank := StringToInteger (&cat [t[i] : i in [2..#t]]);
+     assert (#E eq LieRank) and (#F eq LieRank);
+     
+     // define the outer automorphisms of J
+     x := PrimitiveElement (k);
+     S := [ PrimitiveElement (k) ] cat [ k!1  : i in [1..ri] ];
+     GA := [ ];
+     if (LieType eq "A") and (LieRank ge 2) then
+          Append (~GA, Sym (LieRank)![LieRank + 1 - i : i in [1..LieRank] ]);
+     elif (LieType eq "D") then
+          Append (~GA, Sym (LieRank)!(LieRank-1,LieRank));
+          if (LieRank eq 4) then
+               Append (~GA, Sym (4)!(1,3,4));
+          end if;
+     end if;
+     GA := sub < Sym (LieRank) | GA >;
+     GA := [ pi : pi in GA | pi ne Identity (GA) ];
+     
+     // decompose the J-module
+     M := RModule (J);
+     indM := IndecomposableSummands (M);
+     dims := [ Dimension (S) : S in indM ];
+     assert n eq &+ dims;
+     X := VectorSpace (k, n);
+     indX := [ sub < X | [ Vector (M!(S.i)) : i in [1..Dimension (S)] ] > : S in indM ];
+     assert forall { U : U in indX | not ANNIHILATES (J, U) };
+     C := Matrix (&cat [ Basis (U) : U in indX ]);
+     EC := [ C * E[i] * C^-1 : i in [1..LieRank] ];
+     FC := [ C * F[i] * C^-1 : i in [1..LieRank] ];
+     
+     // lift outer autos on each indecomposable summand
+     pos := 1;
+     delta := Identity (MatrixAlgebra (k, n));  // diagonal auto
+     GAMMA := [ Identity (MatrixAlgebra (k, n)) : i in [1..#GA] ];  // graph autos
+     for i in [1..#indX] do
+          ni := dims[i];
+          Ji := sub < MatrixLieAlgebra (k, ni) | 
+                       [ ExtractBlock (Ji.j, pos, pos, ni, ni) : j in [1..Ngens (Ji)] ] >;
+          ECi := [ ExtractBlock (EC[j], pos, pos, ni, ni) : j in [1..LieRank] ];
+          FCi := [ ExtractBlock (FC[j], pos, pos, ni, ni) : j in [1..LieRank] ];
+          Ci, Ai := CrystalBasis (Ji, ECi, FCi);  // UPDATE SO THAT E, F ARE OPTIONAL ARGS
+     
+     end for;
+
+return delta, GAMMA;
+end function;
 
 
            /*----- INTRINSICS -----*/
@@ -106,6 +161,8 @@ intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt,
 return Eij;
 end intrinsic;
 
+
+// REWRITE CRYSTAL BASIS SO THAT E AND F ARE OPTIONAL ARGUMENTS
 
 /* 
     INPUT:
