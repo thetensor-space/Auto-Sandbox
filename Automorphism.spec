@@ -2,7 +2,7 @@
   src
   {
   	GlobalVars.m
-  	DerAuto.m
+    norm-Lie.m
     der-densor.m
   	isom-test.m
   	auto.m
