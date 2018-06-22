@@ -50,6 +50,27 @@ return H, G;
 end function; 
 
 
+
+
+// block simple
+k := GF (5);
+L0 := LieAlgebra ("D4", k);
+NAT := 1; AD := 1;
+rho_nat := StandardRepresentation (L0);
+rho_ad := AdjointRepresentation (L0);
+L0_nat := Image (rho_nat);
+L0_ad := Image (rho_ad);
+assert Ngens (L0_nat) eq Ngens (L0_ad);
+n := NAT * Degree (L0_nat) + AD * Degree (L0_ad);
+MLie := MatrixLieAlgebra (k, n);
+gens := [ MLie!DiagonalJoin (DiagonalJoin (< L0_nat.i : j in [1..NAT] >),
+                DiagonalJoin (< L0_ad.i : j in [1..AD] >)) : i in [1..Ngens (L0_nat)] ];
+L := sub < MLie | gens >;
+
+
+
+
+/*
 r := 4;
 p := 13;
 k := GF (p);
@@ -77,6 +98,7 @@ E, F, H := ChevalleyBasis (L);
 LVW := sub < MatrixLieAlgebra (k, 8) | [ ExtractBlock (L.i, 5, 5, 8, 8) : i in 
 [1..Ngens(L)] ] >;
 N := SimilaritiesOfSemisimpleLieModule (LVW, 4);
+*/
 
 
 

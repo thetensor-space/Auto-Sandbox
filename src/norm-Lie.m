@@ -90,8 +90,126 @@ return forall { i : i in [1..Ngens (J)] | forall { t : t in [1..Ngens (U)] |
 end function;
 
 
+AD := function (L, x)
+return Matrix ([ Coordinates (L, x*y) : y in Basis (L) ]);
+end function;
+
+
            /*----- SUBROUTINES & SPECIAL CASES -----*/
 
+// NOTE TO SELF: in semisimple case, decompose first into Ji-modules
+/* returns generators for the lift of Out(J) to GL(V) when J < gl(V) is simple. */
+OUTER_SIMPLE := function (J, E, F)
+
+     assert IsSimple (J);
+     k := BaseRing (J);
+     n := Degree (J);
+     t := SemisimpleType (J);
+     LieType := t[1];
+     LieRank := StringToInteger (&cat [t[i] : i in [2..#t]]);
+     assert (#E eq LieRank) and (#F eq LieRank);
+     
+     // define the outer automorphisms of J
+     x := PrimitiveElement (k);
+     S := [ PrimitiveElement (k) ] cat [ k!1  : i in [1..LieRank] ];
+     GA := [ ];
+     if (LieType eq "A") and (LieRank ge 2) then
+          Append (~GA, Sym (LieRank)![LieRank + 1 - i : i in [1..LieRank] ]);
+     elif (LieType eq "D") then
+          Append (~GA, Sym (LieRank)!(LieRank-1,LieRank));
+          if (LieRank eq 4) then
+               Append (~GA, Sym (4)!(1,3,4));
+          end if;
+     end if;
+     GA := sub < Sym (LieRank) | GA >;
+     GA := [ pi : pi in GA | pi ne Identity (GA) ];
+     
+     // decompose the J-module
+     M := RModule (J);
+     indM := IndecomposableSummands (M);
+     dims := [ Dimension (S) : S in indM ];
+     assert n eq &+ dims;
+     X := VectorSpace (k, n);
+     indX := [ sub < X | [ Vector (M!(S.i)) : i in [1..Dimension (S)] ] > : S in indM ];
+     assert forall { U : U in indX | not ANNIHILATES (J, U) };
+     C := Matrix (&cat [ Basis (U) : U in indX ]);
+     EC := [ C * Matrix (E[i]) * C^-1 : i in [1..LieRank] ];
+     FC := [ C * Matrix (F[i]) * C^-1 : i in [1..LieRank] ];
+     
+     // lift outer autos on each indecomposable summand
+     pos := 1;
+     delta := Identity (MatrixAlgebra (k, n));  // diagonal auto
+     GAMMA := [ Identity (MatrixAlgebra (k, n)) : j in [1..#GA] ];  // graph autos
+     
+     for i in [1..#indX] do
+          
+          ni := dims[i];
+          Ji := sub < MatrixLieAlgebra (k, ni) | 
+                       [ ExtractBlock (J.j, pos, pos, ni, ni) : j in [1..Ngens (J)] ] >;
+          ECi := [ Ji!ExtractBlock (EC[j], pos, pos, ni, ni) : j in [1..LieRank] ];
+          FCi := [ Ji!ExtractBlock (FC[j], pos, pos, ni, ni) : j in [1..LieRank] ];
+          
+          Ci, Ai := CrystalBasis (Ji : E := ECi, F := FCi);  
+          
+          D0 := [ k!1 ];
+          for a in [2..#Ai] do
+              word := Ai[a][2];  // the word labelling the i-th node 
+              Append (~D0, &*[ S[word[j]] / S[1+word[j]] : j in [1..#word] ]);
+          end for;
+          D0 := DiagonalMatrix (D0);
+          Di := Ci^-1 * D0 * Ci;
+          assert NORMALIZES_ALGEBRA (Ji, [Di]);  // sanity check
+          InsertBlock (~delta, Di, pos, pos);
+              
+          Bi := [ Vector (Ci[a]) : a in [1..Nrows (Ci)] ];
+          Vi := VectorSpaceWithBasis (Bi);
+          
+          for j in [1..#GA] do
+               
+               s := GA[j];
+               g0 := [ ];
+               
+               for a in [1..#Ai] do
+                   word := Ai[a][2];
+                   gword := [ word[j]^s : j in [1..#word] ];           
+                   vec := Vi.1;
+                   for b in [1..#gword] do  
+                       vec := vec * FCi[gword[b]];
+                   end for;
+                   Append (~g0, Coordinates (Vi, vec));
+               end for;
+               g0 := Matrix (g0);
+               if Rank (g0) eq Rank (Ci) then
+                   g := Ci^-1 * GL (Nrows (g0), k)!g0 * Ci;
+                   if NORMALIZES_ALGEBRA (Ji, [g]) then
+                       InsertBlock (~GAMMA[j], g, pos, pos);
+                   else
+"   (graph auto did not lift to summand)"; 
+                   end if;
+               else
+"   (graph auto did not lift to summand)"; 
+               end if;
+          end for;
+          
+          pos +:= ni;
+     
+     end for;
+     
+"|<GAMMA>| =", #sub<GL(n,k)|GAMMA>;
+"|delta| =", Order (delta);
+[ g : g in sub<GL(n,k)|GAMMA> ];
+
+return delta, GAMMA;
+end function;
+
+
+intrinsic OuterSimple (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> GrpMat
+  { temporary intrinsic }
+     del, GAM := OUTER_SIMPLE (L, E, F);
+"|GAM| =", #GAM;
+     G := sub < GL (Degree (L), BaseRing (L)) | del , GAM >;
+return G;
+end intrinsic;
 
 
            /*----- INTRINSICS -----*/
@@ -107,9 +225,40 @@ return Eij;
 end intrinsic;
 
 
+intrinsic IsAdNilpotent (L::AlgLie, x::AlgLieElt) -> BoolElt, RngIntElt
+  { Decide whether x in L is ad-nilpotent.}
+  ad_x := AD (L, x);
+return IsNilpotent (ad_x);
+end intrinsic;
+
+
+intrinsic MyDerivationAlgebra (T::TenSpcElt) -> AlgMatLie , Tuple
+  {A version of DerivationAlgebra that returns representations on the three
+   associated modules.}
+    c := Dimension (Domain (T)[1]);
+    d := Dimension (Domain (T)[2]);
+    e := Dimension (Codomain (T));
+    D := DerivationAlgebra (T);
+    k := BaseRing (D);
+    n := Degree (D);
+    DU := sub < MatrixLieAlgebra (k, c) |
+                [ ExtractBlock (D.i, 1, 1, c, c) : i in [1..Ngens (D)] ] >;
+    DV := sub < MatrixLieAlgebra (k, d) |
+                [ ExtractBlock (D.i, c+1, c+1, d, d) : i in [1..Ngens (D)] ] >;
+    DW := sub < MatrixLieAlgebra (k, e) |
+                [ ExtractBlock (D.i, c+d+1, c+d+1, e, e) : i in [1..Ngens (D)] ] >;
+    fU := hom < D -> DU | x :-> DU!ExtractBlock (x, 1, 1, c, c) >;
+    fV := hom < D -> DU | x :-> DU!ExtractBlock (x, c+1, c+1, d, d) >;
+    fW := hom < D -> DU | x :-> DU!ExtractBlock (x, c+d+1, c+d+1, e, e) >;
+return D, <fU, fV, fW>;
+end intrinsic;
+
+
 /* 
     INPUT:
       (1) L, an irreducible representation of a simple Lie algebra.
+    
+    OPTIONAL:  
       (2) E, the part of a Chevalley basis corresponding to the
           positive fundamental roots of L. In particular, the 
           length of E is the Lie rank r of L.
@@ -123,13 +272,22 @@ end intrinsic;
            * a label for v: a word in [ F[1] ... F[r] ]
            * labelled pointers to v from previous basis elements
 */ 
-intrinsic CrystalBasis (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> 
+intrinsic CrystalBasis (L::AlgMatLie : E := [] , F := []) -> 
               AlgMatElt, SeqEnum
   {Finds a transition matrix to a highest weight basis for L relative to E and F.}
      
      k := BaseRing (L);
      n := Degree (L);
-     r := #E;
+     
+     if #E eq 0 then
+         E, F := ChevalleyBasis (L);  
+     end if;
+     N := sub < L | E >;   
+     NN := N * N;
+     r := Dimension (N) - Dimension (NN);
+     assert [ i : i in [1..#E] | not E[i] in NN ] eq [1..r];
+     E := [ E[i] : i in [1..r] ];
+     F := [ F[i] : i in [1..r] ]; 
      
      // find unique highest weight vector corresponding to E
      HW := &meet [ Nullspace (x) : x in E ];
