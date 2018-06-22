@@ -512,10 +512,12 @@ assert (#indX + #V0subs + #W0subs) eq #indM;
      // start with generators for the centralizer of LL
      ModV := RModule (sub< MatrixAlgebra (k, d) | [ ExtractBlock (LL.i, 1, 1, d, d) :
                i in [1..Ngens (LL)] ] >);
+"dim(ModV) =", Dimension (ModV);
      CentV := EndomorphismAlgebra (ModV);
      isit, CVtimes := UnitGroup (CentV); assert isit;
      ModW := RModule (sub< MatrixAlgebra (k, n-d) | 
               [ ExtractBlock (LL.i, d+1, d+1, n-d, n-d) : i in [1..Ngens (LL)] ] >);
+"dim(ModW) =", Dimension (ModW);
      CentW := EndomorphismAlgebra (ModW);
      isit, CWtimes := UnitGroup (CentW); assert isit;
      Cent := DirectProduct (CVtimes, CWtimes);

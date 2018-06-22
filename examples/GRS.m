@@ -49,9 +49,9 @@ assert #SC eq Binomial (r, 2);
 return H, G;
 end function; 
 
-/*
+
 r := 4;
-p := 7;
+p := 13;
 k := GF (p);
 V := VectorSpace (k, r);
 SC_Theorem_5_3 := [
@@ -74,10 +74,14 @@ isit, L := HasLeviSubalgebra (D);
 "dimension of Levi subalgebra =", Dimension (L);
 E, F, H := ChevalleyBasis (L);
 "|E| =", #E, "    |H| =", #H;
-*/
+LVW := sub < MatrixLieAlgebra (k, 8) | [ ExtractBlock (L.i, 5, 5, 8, 8) : i in 
+[1..Ngens(L)] ] >;
+N := SimilaritiesOfSemisimpleLieModule (LVW, 4);
+
 
 
 // example of block matrix Lie algebras to test code with
+/*
 k := GF (5);
 Vblocks := [ 2 , 2 , 2 ];
 d := &+ Vblocks;
@@ -103,6 +107,7 @@ RL0 := NilRadical (L0);
 g := Random (GL (d, k));   h := Random (GL (e, k));
 x := DiagonalJoin (g, h);
 L := sub < Generic (L0) | [ x * Matrix (L0.i) * x^-1 : i in [1..Ngens (L0)] ] >;
+*/
 
 
 
