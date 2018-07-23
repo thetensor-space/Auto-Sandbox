@@ -50,23 +50,68 @@ return H, G;
 end function; 
 
 
+// DELETE SOON
+EXPONENTIATE := function (z)
+	// Convert to associative product if necessary.
+	if ISA (Type(z), AlgMatLieElt) then 
+		P := Parent (z);
+		MA := MatrixAlgebra (BaseRing (P), Degree (P));
+		z := MA!z;
+	end if;
+	u := z^0;
+	i := 1;
+	v := z;
+	while not (v eq 0) do
+		u +:= v / Factorial (i);
+		i +:= 1;
+		v *:= z;
+	end while;
+return u;
+end function;
+
 
 
 // block simple
 k := GF (5);
-L0 := LieAlgebra ("D4", k);
+type := "D3";
+L0 := LieAlgebra (type, k);
 NAT := 1; AD := 1;
 rho_nat := StandardRepresentation (L0);
 rho_ad := AdjointRepresentation (L0);
-L0_nat := Image (rho_nat);
-L0_ad := Image (rho_ad);
-assert Ngens (L0_nat) eq Ngens (L0_ad);
-n := NAT * Degree (L0_nat) + AD * Degree (L0_ad);
-MLie := MatrixLieAlgebra (k, n);
-gens := [ MLie!DiagonalJoin (DiagonalJoin (< L0_nat.i : j in [1..NAT] >),
-                DiagonalJoin (< L0_ad.i : j in [1..AD] >)) : i in [1..Ngens (L0_nat)] ];
-L := sub < MLie | gens >;
 
+n := NAT * Degree (Image (rho_nat)) + AD * Degree (Image (rho_ad));
+MLie := MatrixLieAlgebra (k, n);
+gens := [ MLie!0 : i in [1..Ngens (L0)] ];
+pos := 1;
+for i in [1..NAT] do
+    for j in [1..Ngens (L0)] do
+        InsertBlock (~gens[j], L0.j @ rho_nat, pos, pos);
+    end for;
+    pos +:= Degree (Image (rho_nat));
+end for;
+for i in [1..AD] do
+    for j in [1..Ngens (L0)] do
+        InsertBlock (~gens[j], L0.j @ rho_ad, pos, pos);
+    end for;
+    pos +:= Degree (Image (rho_ad));
+end for;
+
+L := sub < MLie | gens >;
+E0, F0 := ChevalleyBasis (L);
+E := [ E0[i] : i in [1..StringToInteger (type[2])] ];
+F := [ F0[i] : i in [1..StringToInteger (type[2])] ];
+
+X := GL (Degree (L), k);
+M := RModule (L);
+EndM := EndomorphismAlgebra (M);
+isit, C := UnitGroup (EndM);
+assert isit;
+"centraliser of L has order", #C;
+CON := sub < X | [ EXPONENTIATE (z) : z in E cat F ] , C >;
+"connected component mod centraliser has order", #CON div #C;
+H := OuterSimple (L, E, F);
+OUT := sub < X | CON , H >;
+"full normalizer mod connected component has order", #OUT div #CON;
 
 
 
@@ -102,34 +147,7 @@ N := SimilaritiesOfSemisimpleLieModule (LVW, 4);
 
 
 
-// example of block matrix Lie algebras to test code with
-/*
-k := GF (5);
-Vblocks := [ 2 , 2 , 2 ];
-d := &+ Vblocks;
-Wblocks := [ 3 , 3 ];
-e := &+ Wblocks;
-gens := [ ];
-ML := MatrixLieAlgebra (k, d+e);
-for i in [1,2] do
-  x := DiagonalJoin(< Random (MatrixAlgebra (k, a)) : a in Vblocks >);
-  y := DiagonalJoin(< Random (MatrixAlgebra (k, b)) : b in Wblocks >);
-  Append (~gens, ML!DiagonalJoin (x, y));
-end for;
-A := sub < ML | gens >;
-RA := NilRadical (A);
-"dim(A) =", Dimension (A);
-"dim(RA) =", Dimension (RA);
-isit, L0 := HasLeviSubalgebra (A);
-"dim(L0) =", Dimension (L0);
-RL0 := NilRadical (L0);
-"dim(RL0) =", Dimension (RL0);
 
-// scramble
-g := Random (GL (d, k));   h := Random (GL (e, k));
-x := DiagonalJoin (g, h);
-L := sub < Generic (L0) | [ x * Matrix (L0.i) * x^-1 : i in [1..Ngens (L0)] ] >;
-*/
 
 
 

@@ -161,7 +161,7 @@ G2Module := function(q)
   return L;
 end function;
 
-SmallestG2Module(q)
+SmallestG2Module := function(q)
   L := G2Module(q);
   CT := ExteriorCotensorSpace(VectorSpace(GF(q), 7), 2);
   t := AsTensor(CT);
@@ -251,8 +251,59 @@ LocalHeisenberg := function(g, a, c)
   return Tensor(Forms, 2, 1);
 end function;
 
+MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)
+  
+  // calculate the degree of the representation and the number of generators
+  n := 0;
+  m := 0;
+  for i in [1..#stypes] do
+      L := LieAlgebra (stypes[i], k);
+      r := rtypes[i];
+      m +:= Ngens (L);
+      n +:= r[1] * Degree (Image (StandardRepresentation (L)));
+      n +:= r[2] * Degree (Image (AdjointRepresentation (L)));
+  end for;
+  
+  MLie := MatrixLieAlgebra (k, n);
+  gens := [ MLie!0 : i in [1..m] ];
+  pos := 1;
+  g := 0;
+  for i in [1..#stypes] do
+      J := LieAlgebra (stypes[i], k);
+      r := rtypes[i];
+          if r[1] gt 0 then
+              Jrep := StandardRepresentation (J);
+              d := Degree (Image (Jrep));
+              for s in [1..r[1]] do
+                  for j in [1..Ngens (J)] do
+                      InsertBlock (~gens[g+j], J.j @ Jrep, pos, pos);
+                  end for;
+                  pos +:= d;
+              end for;
+          end if;
+          if r[2] gt 0 then
+              Jrep := AdjointRepresentation (J);
+              d := Degree (Image (Jrep));
+              for s in [1..r[2]] do
+                  for j in [1..Ngens (J)] do
+                      InsertBlock (~gens[g+j], J.j @ Jrep, pos, pos);
+                  end for;
+                  pos +:= d;
+              end for;
+          end if; 
+      g +:= Ngens (J);
+  end for;
+  
+  L := sub < MLie | gens >;
+  if SCRAMBLE then
+       G := GL (n, k);
+       g := Random (G);
+       L := sub < MLie | [ g * Matrix (gens[i]) * g^-1 : i in [1..#gens] ] >;
+  end if;
 
+return L;
 
+end function; 
 
 
 

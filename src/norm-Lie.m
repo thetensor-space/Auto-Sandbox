@@ -96,8 +96,58 @@ end function;
 
 
            /*----- SUBROUTINES & SPECIAL CASES -----*/
+           
+/* decides conjugacy between two matrix Lie algebras acting irreducibly on their modules */
+IS_CONJUGATE_IRREDUCIBLE := function (J1, E1, F1, J2, E2, F2)  
+     assert IsIrreducible (RModule (J1)) and IsIrreducible (RModule (J2));
+     C1 := CrystalBasis (J1 : E := E1, F := F1);
+     C2 := CrystalBasis (J2 : E := E2, F := F2);
+     K1 := sub < Generic (J1) | [ C1 * Matrix (J1.i) * C1^-1 : i in [1..Ngens (J1)] ] >;
+     K2 := sub < Generic (J2) | [ C2 * Matrix (J2.i) * C2^-1 : i in [1..Ngens (J2)] ] >;
+return K1 eq K2, C1^-1 * C2; 
+end function;  
 
-// NOTE TO SELF: in semisimple case, decompose first into Ji-modules
+/* decides conjugacy between semisimple algebras acting faithfully on all summands */
+IS_CONJUGATE_COMPLETELY_REDUCIBLE := function (L1, E1, F1, L2, E2, F2)  
+
+     k := BaseRing (L1);
+     d := Degree (L1);
+     V := VectorSpace (k, d);
+     
+     M1 := RModule (L1);
+     indM1 := IndecomposableSummands (M1);
+     Sort (~indM1, func<x,y|Dimension(y)-Dimension(x)>); 
+     dims := [ Dimension (indM1[i]) : i in [1..#indM1] ];  
+     M2 := RModule (L2);
+     indM2 := IndecomposableSummands (M2);
+     Sort (~indM2, func<x,y|Dimension(y)-Dimension(x)>);
+     assert dims eq [ Dimension (indM2[i]) : i in [1..#indM2] ];
+     
+     // get the transition matrix for the first algebra
+     indV1 := [ sub < V | [ Vector (M1!(S.i)) : i in [1..Dimension (S)] ] > : S in indM1 ];
+     C1 := Matrix (&cat [ Basis (U) : U in indV1 ]);
+     L1C1 := sub < MatrixLieAlgebra (k, d) | 
+                    [ C1 * Matrix (L1.i) * C1^-1 : i in [1..Ngens (L1)] ] >;
+     E1C1 := [ C1 * E1[i] * C1^-1 : i in [1..#E1] ];
+     F1C1 := [ C1 * F1[i] * C1^-1 : i in [1..#F1] ];
+     pos := 1;
+     D1 := < >;
+     for i in [1..#dims] do
+          di := dims[i];
+          L1i := sub < MatrixLieAlgebra (k, di) |
+                [ ExtractBlock (L1C1.j, pos, pos, di, di) : j in [1..Ngens (L1C1)] ] >;
+          E1i := [ ExtractBlock (E1C1[j], pos, pos, di, di) : j in [1..#E1C1] ];
+          F1i := [ ExtractBlock (F1C1[j], pos, pos, di, di) : j in [1..#F1C1] ];
+          D1i := CrystalBasis (L1i : E := E1i, F := F1i);
+          Append (~D1, D1, i);
+     end for;
+     D1 := DiagonalJoin (D1);
+     K1 := sub < Generic (L1) | [ D1 * Matrix (L1C1.i) * D1^-1 : i in [1..Ngens (L1)] ] >;
+     
+     // next determine all possible summand orderings for the second algebra
+return indM1, indM2;    
+end function; 
+
 /* returns generators for the lift of Out(J) to GL(V) when J < gl(V) is simple. */
 OUTER_SIMPLE := function (J, E, F)
 
@@ -109,21 +159,6 @@ OUTER_SIMPLE := function (J, E, F)
      LieRank := StringToInteger (&cat [t[i] : i in [2..#t]]);
      assert (#E eq LieRank) and (#F eq LieRank);
      
-     // define the outer automorphisms of J
-     x := PrimitiveElement (k);
-     S := [ PrimitiveElement (k) ] cat [ k!1  : i in [1..LieRank] ];
-     GA := [ ];
-     if (LieType eq "A") and (LieRank ge 2) then
-          Append (~GA, Sym (LieRank)![LieRank + 1 - i : i in [1..LieRank] ]);
-     elif (LieType eq "D") then
-          Append (~GA, Sym (LieRank)!(LieRank-1,LieRank));
-          if (LieRank eq 4) then
-               Append (~GA, Sym (4)!(1,3,4));
-          end if;
-     end if;
-     GA := sub < Sym (LieRank) | GA >;
-     GA := [ pi : pi in GA | pi ne Identity (GA) ];
-     
      // decompose the J-module
      M := RModule (J);
      indM := IndecomposableSummands (M);
@@ -133,16 +168,34 @@ OUTER_SIMPLE := function (J, E, F)
      indX := [ sub < X | [ Vector (M!(S.i)) : i in [1..Dimension (S)] ] > : S in indM ];
      assert forall { U : U in indX | not ANNIHILATES (J, U) };
      C := Matrix (&cat [ Basis (U) : U in indX ]);
+     JC := sub < MatrixLieAlgebra (k, n) | 
+                  [ C * Matrix (J.i) * C^-1 : i in [1..Ngens (J)] ] >;
      EC := [ C * Matrix (E[i]) * C^-1 : i in [1..LieRank] ];
      FC := [ C * Matrix (F[i]) * C^-1 : i in [1..LieRank] ];
      
-     // lift outer autos on each indecomposable summand
      pos := 1;
+     S := [ PrimitiveElement (k) ] cat [ k!1  : i in [1..LieRank] ];
      delta := Identity (MatrixAlgebra (k, n));  // diagonal auto
-     GAMMA := [ Identity (MatrixAlgebra (k, n)) : j in [1..#GA] ];  // graph autos
+     GA := [ ];
+     if (LieType eq "A") and (LieRank ge 2) then
+          Append (~GA, Sym (LieRank)![LieRank + 1 - i : i in [1..LieRank] ]);
+     elif (LieType eq "D") then
+          Append (~GA, Sym (LieRank)!(LieRank-1,LieRank));
+          if (LieRank eq 4) then
+               Append (~GA, Sym (4)!(1,3,4));
+          end if;
+     end if;
      
-     for i in [1..#indX] do
-          
+     if #GA gt 0 then
+          GA := sub < Sym (LieRank) | GA >;
+          GA := [ pi : pi in GA | pi ne Identity (GA) ];
+          GAMMA := [ Identity (MatrixAlgebra (k, n)) : j in [1..#GA] ];  // graph autos
+     else
+          GAMMA := [ ];
+     end if;
+  
+     for i in [1..#indX] do 
+            
           ni := dims[i];
           Ji := sub < MatrixLieAlgebra (k, ni) | 
                        [ ExtractBlock (J.j, pos, pos, ni, ni) : j in [1..Ngens (J)] ] >;
@@ -151,6 +204,7 @@ OUTER_SIMPLE := function (J, E, F)
           
           Ci, Ai := CrystalBasis (Ji : E := ECi, F := FCi);  
           
+          // lift diagonal auto 
           D0 := [ k!1 ];
           for a in [2..#Ai] do
               word := Ai[a][2];  // the word labelling the i-th node 
@@ -160,18 +214,17 @@ OUTER_SIMPLE := function (J, E, F)
           Di := Ci^-1 * D0 * Ci;
           assert NORMALIZES_ALGEBRA (Ji, [Di]);  // sanity check
           InsertBlock (~delta, Di, pos, pos);
-              
+          
+          // try to lift remaining graph automorphisms
           Bi := [ Vector (Ci[a]) : a in [1..Nrows (Ci)] ];
           Vi := VectorSpaceWithBasis (Bi);
-          
+          assert #GA eq #GAMMA;
+          NGA := [ ]; NGAMMA := [ ];
           for j in [1..#GA] do
-               
-               s := GA[j];
                g0 := [ ];
-               
                for a in [1..#Ai] do
                    word := Ai[a][2];
-                   gword := [ word[j]^s : j in [1..#word] ];           
+                   gword := [ word[c]^(GA[j]) : c in [1..#word] ];           
                    vec := Vi.1;
                    for b in [1..#gword] do  
                        vec := vec * FCi[gword[b]];
@@ -183,33 +236,29 @@ OUTER_SIMPLE := function (J, E, F)
                    g := Ci^-1 * GL (Nrows (g0), k)!g0 * Ci;
                    if NORMALIZES_ALGEBRA (Ji, [g]) then
                        InsertBlock (~GAMMA[j], g, pos, pos);
-                   else
-"   (graph auto did not lift to summand)"; 
+                       Append (~NGAMMA, GAMMA[j]);
+                       Append (~NGA, GA[j]);
                    end if;
-               else
-"   (graph auto did not lift to summand)"; 
                end if;
-          end for;
+          end for; 
+          GA := NGA;
+          GAMMA := NGAMMA;   
           
           pos +:= ni;
-     
+          
      end for;
      
-"|<GAMMA>| =", #sub<GL(n,k)|GAMMA>;
-"|delta| =", Order (delta);
-[ g : g in sub<GL(n,k)|GAMMA> ];
+     assert NORMALIZES_ALGEBRA (JC, [delta]);
+     assert NORMALIZES_ALGEBRA (JC, GAMMA);
+     
+     gens := [ delta ] cat 
+             [ gamma : gamma in GAMMA | gamma ne Identity (MatrixAlgebra (k, n)) ];
+     gens := [ C^-1 * gens[i] * C : i in [1..#gens] ];
+     H := sub < GL (n, k) | [ GL (n, k)!x : x in gens ] >;
 
-return delta, GAMMA;
+return H;
 end function;
 
-
-intrinsic OuterSimple (L::AlgMatLie, E::SeqEnum, F::SeqEnum) -> GrpMat
-  { temporary intrinsic }
-     del, GAM := OUTER_SIMPLE (L, E, F);
-"|GAM| =", #GAM;
-     G := sub < GL (Degree (L), BaseRing (L)) | del , GAM >;
-return G;
-end intrinsic;
 
 
            /*----- INTRINSICS -----*/
@@ -291,7 +340,7 @@ intrinsic CrystalBasis (L::AlgMatLie : E := [] , F := []) ->
      
      // find unique highest weight vector corresponding to E
      HW := &meet [ Nullspace (x) : x in E ];
-     assert Dimension (HW) eq 1;
+     require Dimension (HW) eq 1 : "there must be a unique highest weight vector";
      lambda := HW.1;
      
      // spin up the basis using elements of F, keeping track of words as we go
@@ -331,6 +380,123 @@ return C, A;
 end intrinsic;
 
 
+/*
+  INPUT: two subalgebras, L1 and L2, of the matrix Lie algebra gl(V), dim(V) = n
+     (optional: a partition of [1..n] to indicate that L1 and L2 are actually
+      subalgebras of gl(U_1) x ... x gl(U_m) in block diagonal form.)
+  OUTPUT: a boolean indicating whether L1 and L2 are conjugate by an element of GL(V)
+      together with a suitable conjugating element.
+     (optional: conjugacy is decided within GL(U_1) x ... x GL(U_m))
+*/   
+intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
+                 BoolElt, AlgMatElt
+  { Decide whether the matrix Lie algebras L1 and L2 are conjugate. }
+  
+  flag, LL1 := HasLeviSubalgebra (L1);
+  require (flag and (L1 eq LL1)) : 
+     "at present the function works only for semisimple Lie algebras";
+
+  require (Degree (L1) eq Degree (L2)) and #BaseRing (L1) eq #BaseRing (L2) :
+     "matrix algebras must have the same degree and be defined over the same finite field";
+     
+  k := BaseRing (L1);
+  n := Degree (L1);
+  G := GL (n, k);
+  V := VectorSpace (k, n);
+  
+  // get the minimal ideals of L and make sure they act "simply" on V   
+  MI1 := IndecomposableSummands (L1);
+  MI2 := IndecomposableSummands (L2);
+  if #MI1 ne #MI2 then
+       return false, _;
+  end if;
+  n := #MI1; 
+  indV := [ sub < V | [ V.i * (J.j) : i in [1..n], j in [1..Ngens (J)] ] > : J in MI ];
+  
+end intrinsic;
+
+
+/* 
+Used the same name as the function created (presumably) by Colva for groups.
+  INPUT: a subalgebra, L, of the matrix Lie algebra gl(V), dim(V) = n
+     (optional: a partition of [1..n] to indicate that L is actually
+      a subalgebra of gl(U_1) x ... x gl(U_m) in block diagonal form.)
+  OUTPUT: the subgroup N(L) of GL(V) of elements normalizing L.
+     (optional: the subgroup of GL(U_1) x ... x GL(U_m) normalizing L.)
+*/
+intrinsic GLNormalizer (L::AlgMatLie : PARTITION := [ ]) -> GrpMat
+  { Returns the group of invertible matrices normalizing the matrix Lie algebra L. }
+  
+  flag, LL := HasLeviSubalgebra (L);
+  require (flag and (L eq LL)) : 
+     "at present the function works only for semisimple Lie algebras";
+  
+  k := BaseRing (L);
+  n := Degree (L);
+  G := GL (n, k);
+  V := VectorSpace (k, n);
+  
+  // get the minimal ideals of L and make sure they act "simply" on V   
+  MI := IndecomposableSummands (L);
+  indV := [ sub < V | [ V.i * (J.j) : i in [1..n], j in [1..Ngens (J)] ] > : J in MI ];
+  if #MI gt 1 then
+      require forall { s : s in [1..#MI] |
+            ANNIHILATES (MI[s], &+ [indV[t] : t in [1..#indV] | s ne t ]) } :
+"not all irreducible L-modules are irreducible J-modules for some minimal ideal J of L";
+  end if;
+
+  // compute the subgroup centralizing L
+  ModL := RModule (L);
+  CentL := EndomorphismAlgebra (ModL);
+  isit, C := UnitGroup (CentL); assert isit;
+"the group, C, centralizing L has order", #C;
+  
+  // find a Chevalley basis for L and use it to exponentiate
+  E, F := ChevalleyBasis (L);
+  EXP := sub < G | [ EXPONENTIATE (z) : z in E cat F ] , C >;
+"EXP / C has order", #EXP div #C;
+  
+  // put L into block diagonal form corresponding to the minimal ideals                    
+  degs := [ Dimension (U) : U in indV ];
+  C := Matrix (&cat [ Basis (U) : U in indV ]);
+  LC := sub < Generic (L) | [ C * Matrix (L.i) * C^-1 : i in [1..Ngens (L)] ] >;
+  MIC := [ sub < Generic (J) | [ C * Matrix (J.i) *C^-1 : i in [1..Ngens (J)] ] > :
+                     J in MI ];
+  EC := [ C * Matrix (E[i]) * C^-1 : i in [1..#E] ];
+  FC := [ C * Matrix (F[i]) * C^-1 : i in [1..#F] ];
+  
+  // extract the blocks and construct the lifts of the outer automorphisms on each block
+  pos := 1;
+  aut_gens := [ ];
+  for s in [1..#MIC] do
+       Js := sub < MatrixLieAlgebra (k, degs[s]) |
+            [ ExtractBlock ((MIC[s]).j, pos, pos, degs[s], degs[s]) : 
+                          j in [1..Ngens (MIC[s])] ] >;
+       assert IsSimple (Js);
+       t := SemisimpleType (Js);                 
+       LieRank := StringToInteger (&cat [t[i] : i in [2..#t]]);
+       ECs := [ ExtractBlock (EC[j], pos, pos, degs[s], degs[s]) : j in [1..#EC] ];
+       FCs := [ ExtractBlock (FC[j], pos, pos, degs[s], degs[s]) : j in [1..#FC] ];
+       ECs := [ e : e in ECs | e ne 0 ];
+       FCs := [ f : f in FCs | f ne 0 ];
+       OUTs := OUTER_SIMPLE (Js, [ECs[i] : i in [1..LieRank]], [FCs[i] : i in [1..LieRank]]);
+       aut_gens cat:= [ InsertBlock (Identity (G), OUTs.j, pos, pos) : 
+                                                     j in [1..Ngens (OUTs)] ];
+       pos +:= degs[s];
+  end for;
+  
+  aut_gens := [ C^-1 * aut_gens[i] * C : i in [1..#aut_gens] ];
+  AUT := sub < G | aut_gens , EXP >;  
+"AUT / EXP has order", #AUT div #EXP;
+  
+assert NORMALIZES_ALGEBRA (L, [ AUT.i : i in [1..Ngens (AUT)] ]); 
+  
+return AUT;
+
+end intrinsic;
+
+                /* ----------------- DELETE ---------------- */
+// THIS WILL BE DELETED ONCE I'vE EXTRACTED EVERYTHING I NEED ZFROM IT.
 intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
                 E := [ ], F := [ ], H := [ ]) -> GrpMat
 { Construct the group of similarites of the given (completely reducible) representation.}
