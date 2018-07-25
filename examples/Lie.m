@@ -251,8 +251,7 @@ LocalHeisenberg := function(g, a, c)
   return Tensor(Forms, 2, 1);
 end function;
 
-MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)
-  
+MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)  
   // calculate the degree of the representation and the number of generators
   n := 0;
   m := 0;
@@ -262,8 +261,7 @@ MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)
       m +:= Ngens (L);
       n +:= r[1] * Degree (Image (StandardRepresentation (L)));
       n +:= r[2] * Degree (Image (AdjointRepresentation (L)));
-  end for;
-  
+  end for;  
   MLie := MatrixLieAlgebra (k, n);
   gens := [ MLie!0 : i in [1..m] ];
   pos := 1;
@@ -292,18 +290,27 @@ MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)
               end for;
           end if; 
       g +:= Ngens (J);
-  end for;
-  
+  end for;  
   L := sub < MLie | gens >;
   if SCRAMBLE then
        G := GL (n, k);
        g := Random (G);
        L := sub < MLie | [ g * Matrix (gens[i]) * g^-1 : i in [1..#gens] ] >;
   end if;
-
 return L;
-
 end function; 
+
+/*
+  Given irreducible representations of L1 and L2, return their tensor
+  product––an irreducible representation of L1 + L2.
+*/
+MyTensorProduct := function (L1, L2)
+  n := Degree (L1) * Degree (L2);
+  MLie := MatrixLieAlgebra (BaseRing (L1), n);
+  L := sub < MLie | [ KroneckerProduct (Matrix (L1.i), Matrix (L2.j)) :
+                            i in [1..Ngens (L1)] , j in [1..Ngens (L2)] ] >;
+return L;
+end function;
 
 
 

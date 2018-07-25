@@ -73,9 +73,9 @@ end function;
 
 // block simple
 k := GF (5);
-type := "D3";
+type := "A2";
 L0 := LieAlgebra (type, k);
-NAT := 1; AD := 1;
+NAT := 1; AD := 0;
 rho_nat := StandardRepresentation (L0);
 rho_ad := AdjointRepresentation (L0);
 
@@ -97,21 +97,11 @@ for i in [1..AD] do
 end for;
 
 L := sub < MLie | gens >;
-E0, F0 := ChevalleyBasis (L);
-E := [ E0[i] : i in [1..StringToInteger (type[2])] ];
-F := [ F0[i] : i in [1..StringToInteger (type[2])] ];
 
-X := GL (Degree (L), k);
-M := RModule (L);
-EndM := EndomorphismAlgebra (M);
-isit, C := UnitGroup (EndM);
-assert isit;
-"centraliser of L has order", #C;
-CON := sub < X | [ EXPONENTIATE (z) : z in E cat F ] , C >;
-"connected component mod centraliser has order", #CON div #C;
-H := OuterSimple (L, E, F);
-OUT := sub < X | CON , H >;
-"full normalizer mod connected component has order", #OUT div #CON;
+// scrambled copies
+g1 := Random (GL (n, k));   g2 := Random (GL (n, k));
+L1 := sub < MLie | [ g1 * Matrix (L.i) * g1^-1 : i in [1..Ngens (L)] ] >;
+L2 := sub < MLie | [ g2 * Matrix (L.i) * g2^-1 : i in [1..Ngens (L)] ] >;
 
 
 

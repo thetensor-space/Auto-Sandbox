@@ -108,12 +108,11 @@ return K1 eq K2, C1^-1 * C2;
 end function;  
 
 /* decides conjugacy between semisimple algebras acting faithfully on all summands */
+/*
 IS_CONJUGATE_COMPLETELY_REDUCIBLE := function (L1, E1, F1, L2, E2, F2)  
-
      k := BaseRing (L1);
      d := Degree (L1);
      V := VectorSpace (k, d);
-     
      M1 := RModule (L1);
      indM1 := IndecomposableSummands (M1);
      Sort (~indM1, func<x,y|Dimension(y)-Dimension(x)>); 
@@ -121,8 +120,7 @@ IS_CONJUGATE_COMPLETELY_REDUCIBLE := function (L1, E1, F1, L2, E2, F2)
      M2 := RModule (L2);
      indM2 := IndecomposableSummands (M2);
      Sort (~indM2, func<x,y|Dimension(y)-Dimension(x)>);
-     assert dims eq [ Dimension (indM2[i]) : i in [1..#indM2] ];
-     
+     assert dims eq [ Dimension (indM2[i]) : i in [1..#indM2] ];  
      // get the transition matrix for the first algebra
      indV1 := [ sub < V | [ Vector (M1!(S.i)) : i in [1..Dimension (S)] ] > : S in indM1 ];
      C1 := Matrix (&cat [ Basis (U) : U in indV1 ]);
@@ -139,14 +137,14 @@ IS_CONJUGATE_COMPLETELY_REDUCIBLE := function (L1, E1, F1, L2, E2, F2)
           E1i := [ ExtractBlock (E1C1[j], pos, pos, di, di) : j in [1..#E1C1] ];
           F1i := [ ExtractBlock (F1C1[j], pos, pos, di, di) : j in [1..#F1C1] ];
           D1i := CrystalBasis (L1i : E := E1i, F := F1i);
-          Append (~D1, D1, i);
+          Append (~D1, D1i);
      end for;
      D1 := DiagonalJoin (D1);
-     K1 := sub < Generic (L1) | [ D1 * Matrix (L1C1.i) * D1^-1 : i in [1..Ngens (L1)] ] >;
-     
+     K1 := sub < Generic (L1) | [ D1 * Matrix (L1C1.i) * D1^-1 : i in [1..Ngens (L1)] ] >;   
      // next determine all possible summand orderings for the second algebra
 return indM1, indM2;    
 end function; 
+*/
 
 /* returns generators for the lift of Out(J) to GL(V) when J < gl(V) is simple. */
 OUTER_SIMPLE := function (J, E, F)
@@ -380,6 +378,32 @@ return C, A;
 end intrinsic;
 
 
+intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie) -> BoolElt, AlgMatElt
+  { Decide whether the irreducible matrix Lie algebras are conjugate. }
+  
+  flag, LL1 := HasLeviSubalgebra (L1);
+  require (flag and (L1 eq LL1)) : 
+     "at present the function works only for semisimple Lie algebras";
+     
+  flag, LL2 := HasLeviSubalgebra (L2);
+  require (flag and (L2 eq LL2)) : 
+     "at present the function works only for semisimple Lie algebras";
+
+  require (Degree (L1) eq Degree (L2)) and #BaseRing (L1) eq #BaseRing (L2) :
+     "matrix algebras must have the same degree and be defined over the same finite field";
+     
+  // will remove this requirement soon   
+  require IsIrreducible (RModule (L1)) and IsIrreducible (RModule (L2)) :
+    "basic version––just works for irreducible Lie algebras";
+     
+  E1, F1 := ChevalleyBasis (L1);
+  E2, F2 := ChevalleyBasis (L2);
+  
+return IS_CONJUGATE_IRREDUCIBLE (L1, E1, F1, L2, E2, F2);
+  
+end intrinsic;
+
+
 /*
   INPUT: two subalgebras, L1 and L2, of the matrix Lie algebra gl(V), dim(V) = n
      (optional: a partition of [1..n] to indicate that L1 and L2 are actually
@@ -388,6 +412,8 @@ end intrinsic;
       together with a suitable conjugating element.
      (optional: conjugacy is decided within GL(U_1) x ... x GL(U_m))
 */   
+
+/*
 intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
                  BoolElt, AlgMatElt
   { Decide whether the matrix Lie algebras L1 and L2 are conjugate. }
@@ -404,7 +430,7 @@ intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
   G := GL (n, k);
   V := VectorSpace (k, n);
   
-  // get the minimal ideals of L and make sure they act "simply" on V   
+  // get the minimal ideals of L and make sure they act "simply" on V  ... DON'T THINK THIS IS NEEDED. 
   MI1 := IndecomposableSummands (L1);
   MI2 := IndecomposableSummands (L2);
   if #MI1 ne #MI2 then
@@ -414,6 +440,7 @@ intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
   indV := [ sub < V | [ V.i * (J.j) : i in [1..n], j in [1..Ngens (J)] ] > : J in MI ];
   
 end intrinsic;
+*/
 
 
 /* 
@@ -449,12 +476,12 @@ intrinsic GLNormalizer (L::AlgMatLie : PARTITION := [ ]) -> GrpMat
   ModL := RModule (L);
   CentL := EndomorphismAlgebra (ModL);
   isit, C := UnitGroup (CentL); assert isit;
-"the group, C, centralizing L has order", #C;
+//"the group, C, centralizing L has order", #C;
   
   // find a Chevalley basis for L and use it to exponentiate
   E, F := ChevalleyBasis (L);
   EXP := sub < G | [ EXPONENTIATE (z) : z in E cat F ] , C >;
-"EXP / C has order", #EXP div #C;
+//"EXP / C has order", #EXP div #C;
   
   // put L into block diagonal form corresponding to the minimal ideals                    
   degs := [ Dimension (U) : U in indV ];
@@ -487,7 +514,7 @@ intrinsic GLNormalizer (L::AlgMatLie : PARTITION := [ ]) -> GrpMat
   
   aut_gens := [ C^-1 * aut_gens[i] * C : i in [1..#aut_gens] ];
   AUT := sub < G | aut_gens , EXP >;  
-"AUT / EXP has order", #AUT div #EXP;
+//"AUT / EXP has order", #AUT div #EXP;
   
 assert NORMALIZES_ALGEBRA (L, [ AUT.i : i in [1..Ngens (AUT)] ]); 
   
@@ -496,7 +523,7 @@ return AUT;
 end intrinsic;
 
                 /* ----------------- DELETE ---------------- */
-// THIS WILL BE DELETED ONCE I'vE EXTRACTED EVERYTHING I NEED ZFROM IT.
+// THIS WILL BE DELETED ONCE I'vE EXTRACTED EVERYTHING I NEED FROM IT.
 intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
                 E := [ ], F := [ ], H := [ ]) -> GrpMat
 { Construct the group of similarites of the given (completely reducible) representation.}
