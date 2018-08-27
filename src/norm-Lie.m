@@ -93,10 +93,144 @@ end function;
 AD := function (L, x)
 return Matrix ([ Coordinates (L, x*y) : y in Basis (L) ]);
 end function;
+        
+
+MY_SORT := function (str1, str2)
+     if str1 eq str2 then
+         return 0;
+     elif str1 lt str2 then
+         return -1;
+     else 
+         return 1;
+     end if;
+end function;
 
 
-           /*----- SUBROUTINES & SPECIAL CASES -----*/
-           
+
+                   /*----- INTRINSICS -----*/
+
+
+// not sure where this should go, but I could not find it in Magma
+intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt, 
+                  i::RngIntElt, j::RngIntElt) -> ModMatFldElt
+  { The (i,j) elementary m x n matrix over the field K }
+  Eij := KMatrixSpace (K, m, n)!0;
+  Eij[i][j] := 1;
+return Eij;
+end intrinsic;
+
+
+intrinsic IsAdNilpotent (L::AlgLie, x::AlgLieElt) -> BoolElt, RngIntElt
+  { Decide whether x in L is ad-nilpotent.}
+  ad_x := AD (L, x);
+return IsNilpotent (ad_x);
+end intrinsic;
+
+
+intrinsic MyDerivationAlgebra (T::TenSpcElt) -> AlgMatLie , Tuple
+  {A version of DerivationAlgebra that returns representations on the three
+   associated modules.}
+    c := Dimension (Domain (T)[1]);
+    d := Dimension (Domain (T)[2]);
+    e := Dimension (Codomain (T));
+    D := DerivationAlgebra (T);
+    k := BaseRing (D);
+    n := Degree (D);
+    DU := sub < MatrixLieAlgebra (k, c) |
+                [ ExtractBlock (D.i, 1, 1, c, c) : i in [1..Ngens (D)] ] >;
+    DV := sub < MatrixLieAlgebra (k, d) |
+                [ ExtractBlock (D.i, c+1, c+1, d, d) : i in [1..Ngens (D)] ] >;
+    DW := sub < MatrixLieAlgebra (k, e) |
+                [ ExtractBlock (D.i, c+d+1, c+d+1, e, e) : i in [1..Ngens (D)] ] >;
+    fU := hom < D -> DU | x :-> DU!ExtractBlock (x, 1, 1, c, c) >;
+    fV := hom < D -> DU | x :-> DU!ExtractBlock (x, c+1, c+1, d, d) >;
+    fW := hom < D -> DU | x :-> DU!ExtractBlock (x, c+d+1, c+d+1, e, e) >;
+return D, <fU, fV, fW>;
+end intrinsic;
+
+
+/* 
+    INPUT:
+      (1) L, an irreducible representation of a simple Lie algebra.
+    
+    OPTIONAL:  
+      (2) E, the part of a Chevalley basis corresponding to the
+          positive fundamental roots of L. In particular, the 
+          length of E is the Lie rank r of L.
+      (3) F, the opposite fundamental roots.
+      
+    OUTPUT:
+      (1) a transition matrix to a crystal basis.
+      (2) a crystal basis data structure, which is a list whose
+          members are tuples with the following information:
+           * a vector v
+           * a label for v: a word in [ F[1] ... F[r] ]
+           * labelled pointers to v from previous basis elements
+*/ 
+intrinsic CrystalBasis (L::AlgMatLie : E := [] , F := []) -> 
+              AlgMatElt, SeqEnum
+  {Finds a transition matrix to a highest weight basis for L relative to E and F.}
+     
+     k := BaseRing (L);
+     n := Degree (L);
+     
+     if #E eq 0 then
+         E, F := ChevalleyBasis (L);  
+     end if;
+     NE := sub < L | E >;   
+     NENE := NE * NE;
+     NF := sub < L | F >;
+     NFNF := NF * NF;
+     r := Dimension (NE) - Dimension (NENE);
+     assert r eq (Dimension (NF) - Dimension (NFNF));
+     E := [ E[i] : i in [1..#E] | not E[i] in NENE ];
+     F := [ F[i] : i in [1..#F] | not F[i] in NFNF ];
+     assert ((#E eq r) and (#F eq r)); 
+     
+     // find unique highest weight vector corresponding to E
+     HW := &meet [ Nullspace (x) : x in E ];
+     require Dimension (HW) eq 1 : "there must be a unique highest weight vector";
+     lambda := HW.1;
+     
+     // spin up the basis using elements of F, keeping track of words as we go
+     V := VectorSpace (k, n);
+     B := [ V!lambda ];
+     A := [* < V!lambda , [ ] , [ ]  > *];
+     B_old := B;
+     while #B lt n do
+          P := { [i, j] : i in [1..#B_old], j in [1..r] |                     
+                              B_old[i] * F[j] ne 0 };
+          B_new := [ ];
+          for p in P do
+               b := B_old[p[1]] * F[p[2]];
+               if (b * E[p[2]] ne 0) and (b * E[p[2]] in sub < V | B_old[p[1]] >) 
+                  and not b in sub < V | B cat B_new > then
+                    Append (~B_new, b);   
+                    labs := [ [ i , j ] : i in [1..#B] , j in [1..r] | 
+                        (B[i] * F[j] ne 0) and (B[i] * F[j] in sub < V | b >) and
+                        (b * E[j] ne 0) and (b * E[j] in sub < V | B[i] >)
+                        ];
+                    labs cat:= [ [ i + #B, j ] : i in [1..#B_new] , j in [1..r] |
+                        (B_new[i] * F[j] ne 0) and (B_new[i] * F[j] in sub < V | b >) and
+                        (b * E[j] ne 0) and (b * E[j] in sub < V | B_new[i] >)
+                        ];
+                    w := Append (A[labs[1][1]][2], labs[1][2]);
+                    Append (~A, < b , w , labs >);
+               end if;
+          end for;
+          B cat:= B_new;
+          B_old := B_new;
+     end while;
+     
+     C := Matrix (B);
+     
+return C, A;
+
+end intrinsic;
+
+
+        /* --- CONJUGACY FUNCTIONS FOR SEMISIMPLE LIE ALGEBRAS ___ */
+
 /* decides conjugacy between two matrix Lie algebras acting irreducibly on their modules */
 IS_CONJUGATE_IRREDUCIBLE := function (J1, E1, F1, J2, E2, F2)  
      assert IsIrreducible (RModule (J1)) and IsIrreducible (RModule (J2));
@@ -105,46 +239,216 @@ IS_CONJUGATE_IRREDUCIBLE := function (J1, E1, F1, J2, E2, F2)
      K1 := sub < Generic (J1) | [ C1 * Matrix (J1.i) * C1^-1 : i in [1..Ngens (J1)] ] >;
      K2 := sub < Generic (J2) | [ C2 * Matrix (J2.i) * C2^-1 : i in [1..Ngens (J2)] ] >;
 return K1 eq K2, C1^-1 * C2; 
-end function;  
-
-/* decides conjugacy between semisimple algebras acting faithfully on all summands */
-/*
-IS_CONJUGATE_COMPLETELY_REDUCIBLE := function (L1, E1, F1, L2, E2, F2)  
-     k := BaseRing (L1);
-     d := Degree (L1);
-     V := VectorSpace (k, d);
-     M1 := RModule (L1);
-     indM1 := IndecomposableSummands (M1);
-     Sort (~indM1, func<x,y|Dimension(y)-Dimension(x)>); 
-     dims := [ Dimension (indM1[i]) : i in [1..#indM1] ];  
-     M2 := RModule (L2);
-     indM2 := IndecomposableSummands (M2);
-     Sort (~indM2, func<x,y|Dimension(y)-Dimension(x)>);
-     assert dims eq [ Dimension (indM2[i]) : i in [1..#indM2] ];  
-     // get the transition matrix for the first algebra
-     indV1 := [ sub < V | [ Vector (M1!(S.i)) : i in [1..Dimension (S)] ] > : S in indM1 ];
-     C1 := Matrix (&cat [ Basis (U) : U in indV1 ]);
-     L1C1 := sub < MatrixLieAlgebra (k, d) | 
-                    [ C1 * Matrix (L1.i) * C1^-1 : i in [1..Ngens (L1)] ] >;
-     E1C1 := [ C1 * E1[i] * C1^-1 : i in [1..#E1] ];
-     F1C1 := [ C1 * F1[i] * C1^-1 : i in [1..#F1] ];
-     pos := 1;
-     D1 := < >;
-     for i in [1..#dims] do
-          di := dims[i];
-          L1i := sub < MatrixLieAlgebra (k, di) |
-                [ ExtractBlock (L1C1.j, pos, pos, di, di) : j in [1..Ngens (L1C1)] ] >;
-          E1i := [ ExtractBlock (E1C1[j], pos, pos, di, di) : j in [1..#E1C1] ];
-          F1i := [ ExtractBlock (F1C1[j], pos, pos, di, di) : j in [1..#F1C1] ];
-          D1i := CrystalBasis (L1i : E := E1i, F := F1i);
-          Append (~D1, D1i);
-     end for;
-     D1 := DiagonalJoin (D1);
-     K1 := sub < Generic (L1) | [ D1 * Matrix (L1C1.i) * D1^-1 : i in [1..Ngens (L1)] ] >;   
-     // next determine all possible summand orderings for the second algebra
-return indM1, indM2;    
 end function; 
+
+/*
+  Given a semisimple matrix Lie algebra, L, gather data to help determine conjugacy
+  with other such Lie algebras, and to construct its normalizer. Specifically:
+    * IDEALS is a list of the minimal ideals of L, sorted lexicographically on iso type.
+    * TYPES the iso types of the minimal ideals.
+    * PARTITION of the minimal ideals into isotypes.
+    * SUMMANDS is a list of irreducible L-submodules of the given L-module V.
+    * SUPPORTS for each irreducible L-submodule records the ideals that act nontrivially.
 */
+PREPROCESS_SEMISIMPLE := function (L)
+     k := BaseRing (L);
+     d := Degree (L);
+     V := VectorSpace (k, d);
+     /* first find ideals and sort them */
+     IDEALS := IndecomposableSummands (L);
+     n := #IDEALS; S := {1..n};
+     Sort (~IDEALS, func<x,y| MY_SORT (SemisimpleType(x),SemisimpleType(y))>);
+     TYPES := [ SemisimpleType (IDEALS[i]) : i in [1..n] ];
+     /* find isomorphisms classes of minimal ideals and basic permutation group */
+     PARTITION := [ ];
+     T := S;
+     while #T gt 0 do
+          assert exists (t){u : u in T};
+          tpart := { u : u in T | TYPES[u] eq TYPES[t] };
+          T diff:= tpart;
+          Append (~PARTITION, tpart);
+     end while; 
+     PERM := DirectProduct ([ SymmetricGroup (part) : part in PARTITION ]); 
+     /* next find the indecomposable summands of V and their supports */
+     M := RModule (L);
+     SUMMANDS := IndecomposableSummands (M);
+     m := #SUMMANDS; T := {1..m};
+     SUMMANDS := [ sub < V | [ Vector (M!(S.i)) : i in [1..Dimension (S)] ] > : 
+                       S in SUMMANDS ];
+                             
+return IDEALS, TYPES, PARTITION, PERM, SUMMANDS;
+end function;
+            
+
+/* 
+  Given a matrix X acting naturally on V and an invariant subspace W of V,
+  compute the matrix for the restriction of X to W (rel to given basis)
+*/
+RESTRICT := function (X, U)
+     assert Ngens (U) eq Dimension (U);
+     assert U*X subset U;
+     XU := Matrix ([ Coordinates (U, U.i * X) : i in [1..Ngens (U)] ]);
+return XU;
+end function;
+
+/*
+  Given a list of minimal ideals of a semisimple Lie algebra and an
+  indecomposable summand U, determine the support of U––those ideals
+  represented nontrivially on U.
+*/
+SUPPORT := function (IDEALS, U)
+     n := #IDEALS;
+     AU := { j : j in [1..n] | ANNIHILATES (IDEALS[j], U) };
+return {1..n} diff AU;
+end function;
+
+
+/*
+  INPUT: two subalgebras, L1 and L2, of the matrix Lie algebra gl(V), dim(V) = n
+     (optional: a partition of [1..n] to indicate that L1 and L2 are actually
+      subalgebras of gl(U_1) x ... x gl(U_m) in block diagonal form.)
+  OUTPUT: a boolean indicating whether L1 and L2 are conjugate by an element of GL(V)
+      together with a suitable conjugating element.
+     (optional: conjugacy is decided within GL(U_1) x ... x GL(U_m))
+*/   
+
+intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
+                 BoolElt, AlgMatElt
+  { Decide whether the matrix Lie algebras L1 and L2 are conjugate. }
+  
+  flag, LL1 := HasLeviSubalgebra (L1);
+  require (flag and (L1 eq LL1)) : 
+     "at present the function works only for semisimple Lie algebras";
+     
+  flag, LL2 := HasLeviSubalgebra (L2);
+  require (flag and (L2 eq LL2)) : 
+     "at present the function works only for semisimple Lie algebras";
+
+  require (Degree (L1) eq Degree (L2)) and #BaseRing (L1) eq #BaseRing (L2) :
+     "matrix algebras must have the same degree and be defined over the same finite field";
+     
+// TO DO: REDUCE TO NONTRIVIAL PART OF DECOMPOSITION INTO  V = V.L + Null(L)
+     
+  /* must be able to compute a Chevalley basis .. insert try / catch in case we can't? */
+  E1, F1 := ChevalleyBasis (L1);
+  E2, F2 := ChevalleyBasis (L2);
+  
+  /* deal with the irreducible case */
+  if IsIrreducible (RModule (L1)) and IsIrreducible (RModule (L2)) then
+       return IS_CONJUGATE_IRREDUCIBLE (L1, E1, F1, L2, E2, F2);
+  end if;
+  
+  /* next carry out the preprocessing for the conjugacy test */
+  ID1, TYPES1, PART1, PERM1, SUMS1 := PREPROCESS_SEMISIMPLE (L1);
+  ID2, TYPES2, PART2, PERM2, SUMS2 := PREPROCESS_SEMISIMPLE (L2);
+printf "SUMS1 dimensions are %o\n", [ Dimension (U) : U in SUMS1 ];
+printf "SUMS2 dimensions are %o\n", [ Dimension (U) : U in SUMS2 ];
+  
+  /* do the quick tests */
+  if TYPES1 ne TYPES2 then
+       return false, _;
+  else
+       assert (PART1 eq PART2) and (PERM1 eq PERM2);  // sanity check
+  end if;
+  
+  MLie := Generic (L1);
+  k := BaseRing (L1);
+  
+  m := #SUMS1;
+  if #SUMS2 ne m then
+       return false, _;
+  end if;
+  
+  /* test each possible ordering of summands in L2 */
+  perms := [ pi : pi in PERM1];
+printf "|perms| = %o\n", #perms;
+  conj := false;   // keeps track of whether or not we've found a conjugating matrix
+  s := 0;
+  while ((s lt #perms) and (not conj)) do
+       s +:= 1;
+       pi := perms[s];
+printf "pi = %o\n", pi;
+       good := true;   // keeps track of whether <pi> is giving a feasible
+                       // ordering of ideals
+       i := 0;
+       rem2 := SUMS2;
+       BLOCKS := < >;
+       newSUMS2 := [* *];
+       while ((i lt m) and (good)) do
+            i +:= 1;
+            U1 := SUMS1[i];
+            d1 := Dimension (U1);
+printf "\ti = %o", i; printf "   dim(U1) = %o\n", d1;
+            MLieU1 := MatrixLieAlgebra (k, d1);
+            L1U1 := sub < MLieU1 |
+                    [ RESTRICT (Matrix (L1.i), U1) : i in [1..Ngens (L1)] ] >;
+            E1U1 := [ RESTRICT (Matrix(E1[i]), U1) : i in [1..#E1] ];
+            // some elements of E1 act trivially on U1 ... discard them
+            E1U1 := [ MLieU1!(E1U1[i]) : i in [1..#E1U1] | E1U1[i] ne 0 ];
+            F1U1 := [ RESTRICT (Matrix(F1[i]), U1) : i in [1..#F1] ];
+            // some elements of F1 act trivially on U1 ... discard them
+            F1U1 := [ MLieU1!(F1U1[i]) : i in [1..#F1U1] | F1U1[i] ne 0 ];
+            S1 := SUPPORT (ID1, U1);
+            poss2 := [ j : j in [1..#rem2] | S1 eq SUPPORT (ID2, rem2[j])^pi ];
+printf "\tS1 = %o", S1; printf "   poss2 = %o\n", poss2;
+            found := false;   // keeps track of whether or not we've found a U2
+                              // such that LU1 is conjugate to LU2
+            j := 0;
+            while ((j lt #poss2) and (not found)) do
+                 j +:= 1;
+                 U2 := rem2[poss2[j]];
+                 d2 := Dimension (U2);
+printf "\t\tj = %o", j; printf "   dim(U2) = %o\n", d2;
+                 MLieU2 := MatrixLieAlgebra (k, d2);
+                 L2U2 := sub < MLieU2 |
+                         [ RESTRICT (Matrix (L2.i), U2) : i in [1..Ngens (L2)] ] >;
+                 E2U2 := [ RESTRICT (Matrix(E2[i]), U2) : i in [1..#E2] ];
+                 // some elements of E2 act trivially on U2 ... discard them
+                 E2U2 := [ MLieU2!(E2U2[i]) : i in [1..#E2U2] | E2U2[i] ne 0 ];
+                 F2U2 := [ RESTRICT (Matrix(F2[i]), U2) : i in [1..#F2] ];
+                 // some elements of F2 act trivially on U2 ... discard them
+                 F2U2 := [ MLieU2!(F2U2[i]) : i in [1..#F2U2] | F2U2[i] ne 0 ];
+                 isit, BC := IS_CONJUGATE_IRREDUCIBLE (L1U1, E1U1, F1U1, L2U2, E2U2, F2U2);
+printf "\t\tconjugate? %o\n", isit;
+                 if isit then
+                      found := true;
+                      Remove (~rem2, Position (rem2, U2));
+                      Append (~newSUMS2, U2);
+                      Append (~BLOCKS, BC);
+                 end if;
+            end while;
+            if (not found) then
+                 good := false;
+            end if;
+       end while;
+       if (good) then
+            D := DiagonalJoin (BLOCKS);
+            C1 := Matrix (&cat [ Basis (SUMS1[i]) : i in [1..m] ]);
+            C2 := Matrix (&cat [ Basis (newSUMS2[i]) : i in [1..m] ]);
+            L1C1 := sub < MLie | 
+                     [ C1 * Matrix (L1.i) * C1^-1 : i in [1..Ngens (L1)] ] >;
+            L2C2 := sub < MLie | 
+                     [ C2 * Matrix (L2.i) * C2^-1 : i in [1..Ngens (L2)] ] >;
+            L1C1D := sub < MLie |
+                      [ D * Matrix (L1C1.i) * D^-1 : i in [1..Ngens (L1C1)] ] >;
+            if L1C1D eq L2C2 then
+                 conj := true;
+            end if;
+       end if;
+  end while;
+  
+  if (conj) then
+       C := C2^-1 * D * C1;
+assert L2 eq sub < MLie | [ C * Matrix (L1.i) * C^-1 : i in [1..Ngens (L1)] ] >;
+       return true, C;   
+  else
+       return false, _;
+  end if; 
+  
+end intrinsic;
+
+
+             /* --- NORMALIZER OF SEMISIMPLE LIE ALGEBRA FUNCTIONS --- */ 
 
 /* returns generators for the lift of Out(J) to GL(V) when J < gl(V) is simple. */
 OUTER_SIMPLE := function (J, E, F)
@@ -259,190 +563,6 @@ end function;
 
 
 
-           /*----- INTRINSICS -----*/
-
-
-// not sure where this should go, but I could not find it in Magma
-intrinsic ElementaryMatrix (K::FldFin, m::RngIntElt, n::RngIntElt, 
-                  i::RngIntElt, j::RngIntElt) -> ModMatFldElt
-  { The (i,j) elementary m x n matrix over the field K }
-  Eij := KMatrixSpace (K, m, n)!0;
-  Eij[i][j] := 1;
-return Eij;
-end intrinsic;
-
-
-intrinsic IsAdNilpotent (L::AlgLie, x::AlgLieElt) -> BoolElt, RngIntElt
-  { Decide whether x in L is ad-nilpotent.}
-  ad_x := AD (L, x);
-return IsNilpotent (ad_x);
-end intrinsic;
-
-
-intrinsic MyDerivationAlgebra (T::TenSpcElt) -> AlgMatLie , Tuple
-  {A version of DerivationAlgebra that returns representations on the three
-   associated modules.}
-    c := Dimension (Domain (T)[1]);
-    d := Dimension (Domain (T)[2]);
-    e := Dimension (Codomain (T));
-    D := DerivationAlgebra (T);
-    k := BaseRing (D);
-    n := Degree (D);
-    DU := sub < MatrixLieAlgebra (k, c) |
-                [ ExtractBlock (D.i, 1, 1, c, c) : i in [1..Ngens (D)] ] >;
-    DV := sub < MatrixLieAlgebra (k, d) |
-                [ ExtractBlock (D.i, c+1, c+1, d, d) : i in [1..Ngens (D)] ] >;
-    DW := sub < MatrixLieAlgebra (k, e) |
-                [ ExtractBlock (D.i, c+d+1, c+d+1, e, e) : i in [1..Ngens (D)] ] >;
-    fU := hom < D -> DU | x :-> DU!ExtractBlock (x, 1, 1, c, c) >;
-    fV := hom < D -> DU | x :-> DU!ExtractBlock (x, c+1, c+1, d, d) >;
-    fW := hom < D -> DU | x :-> DU!ExtractBlock (x, c+d+1, c+d+1, e, e) >;
-return D, <fU, fV, fW>;
-end intrinsic;
-
-
-/* 
-    INPUT:
-      (1) L, an irreducible representation of a simple Lie algebra.
-    
-    OPTIONAL:  
-      (2) E, the part of a Chevalley basis corresponding to the
-          positive fundamental roots of L. In particular, the 
-          length of E is the Lie rank r of L.
-      (3) F, the opposite fundamental roots.
-      
-    OUTPUT:
-      (1) a transition matrix to a crystal basis.
-      (2) a crystal basis data structure, which is a list whose
-          members are tuples with the following information:
-           * a vector v
-           * a label for v: a word in [ F[1] ... F[r] ]
-           * labelled pointers to v from previous basis elements
-*/ 
-intrinsic CrystalBasis (L::AlgMatLie : E := [] , F := []) -> 
-              AlgMatElt, SeqEnum
-  {Finds a transition matrix to a highest weight basis for L relative to E and F.}
-     
-     k := BaseRing (L);
-     n := Degree (L);
-     
-     if #E eq 0 then
-         E, F := ChevalleyBasis (L);  
-     end if;
-     N := sub < L | E >;   
-     NN := N * N;
-     r := Dimension (N) - Dimension (NN);
-     assert [ i : i in [1..#E] | not E[i] in NN ] eq [1..r];
-     E := [ E[i] : i in [1..r] ];
-     F := [ F[i] : i in [1..r] ]; 
-     
-     // find unique highest weight vector corresponding to E
-     HW := &meet [ Nullspace (x) : x in E ];
-     require Dimension (HW) eq 1 : "there must be a unique highest weight vector";
-     lambda := HW.1;
-     
-     // spin up the basis using elements of F, keeping track of words as we go
-     V := VectorSpace (k, n);
-     B := [ V!lambda ];
-     A := [* < V!lambda , [ ] , [ ]  > *];
-     B_old := B;
-     while #B lt n do
-          P := { [i, j] : i in [1..#B_old], j in [1..r] |                     
-                              B_old[i] * F[j] ne 0 };
-          B_new := [ ];
-          for p in P do
-               b := B_old[p[1]] * F[p[2]];
-               if (b * E[p[2]] ne 0) and (b * E[p[2]] in sub < V | B_old[p[1]] >) 
-                  and not b in sub < V | B cat B_new > then
-                    Append (~B_new, b);   
-                    labs := [ [ i , j ] : i in [1..#B] , j in [1..r] | 
-                        (B[i] * F[j] ne 0) and (B[i] * F[j] in sub < V | b >) and
-                        (b * E[j] ne 0) and (b * E[j] in sub < V | B[i] >)
-                        ];
-                    labs cat:= [ [ i + #B, j ] : i in [1..#B_new] , j in [1..r] |
-                        (B_new[i] * F[j] ne 0) and (B_new[i] * F[j] in sub < V | b >) and
-                        (b * E[j] ne 0) and (b * E[j] in sub < V | B_new[i] >)
-                        ];
-                    w := Append (A[labs[1][1]][2], labs[1][2]);
-                    Append (~A, < b , w , labs >);
-               end if;
-          end for;
-          B cat:= B_new;
-          B_old := B_new;
-     end while;
-     
-     C := Matrix (B);
-     
-return C, A;
-
-end intrinsic;
-
-
-intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie) -> BoolElt, AlgMatElt
-  { Decide whether the irreducible matrix Lie algebras are conjugate. }
-  
-  flag, LL1 := HasLeviSubalgebra (L1);
-  require (flag and (L1 eq LL1)) : 
-     "at present the function works only for semisimple Lie algebras";
-     
-  flag, LL2 := HasLeviSubalgebra (L2);
-  require (flag and (L2 eq LL2)) : 
-     "at present the function works only for semisimple Lie algebras";
-
-  require (Degree (L1) eq Degree (L2)) and #BaseRing (L1) eq #BaseRing (L2) :
-     "matrix algebras must have the same degree and be defined over the same finite field";
-     
-  // will remove this requirement soon   
-  require IsIrreducible (RModule (L1)) and IsIrreducible (RModule (L2)) :
-    "basic version––just works for irreducible Lie algebras";
-     
-  E1, F1 := ChevalleyBasis (L1);
-  E2, F2 := ChevalleyBasis (L2);
-  
-return IS_CONJUGATE_IRREDUCIBLE (L1, E1, F1, L2, E2, F2);
-  
-end intrinsic;
-
-
-/*
-  INPUT: two subalgebras, L1 and L2, of the matrix Lie algebra gl(V), dim(V) = n
-     (optional: a partition of [1..n] to indicate that L1 and L2 are actually
-      subalgebras of gl(U_1) x ... x gl(U_m) in block diagonal form.)
-  OUTPUT: a boolean indicating whether L1 and L2 are conjugate by an element of GL(V)
-      together with a suitable conjugating element.
-     (optional: conjugacy is decided within GL(U_1) x ... x GL(U_m))
-*/   
-
-/*
-intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
-                 BoolElt, AlgMatElt
-  { Decide whether the matrix Lie algebras L1 and L2 are conjugate. }
-  
-  flag, LL1 := HasLeviSubalgebra (L1);
-  require (flag and (L1 eq LL1)) : 
-     "at present the function works only for semisimple Lie algebras";
-
-  require (Degree (L1) eq Degree (L2)) and #BaseRing (L1) eq #BaseRing (L2) :
-     "matrix algebras must have the same degree and be defined over the same finite field";
-     
-  k := BaseRing (L1);
-  n := Degree (L1);
-  G := GL (n, k);
-  V := VectorSpace (k, n);
-  
-  // get the minimal ideals of L and make sure they act "simply" on V  ... DON'T THINK THIS IS NEEDED. 
-  MI1 := IndecomposableSummands (L1);
-  MI2 := IndecomposableSummands (L2);
-  if #MI1 ne #MI2 then
-       return false, _;
-  end if;
-  n := #MI1; 
-  indV := [ sub < V | [ V.i * (J.j) : i in [1..n], j in [1..Ngens (J)] ] > : J in MI ];
-  
-end intrinsic;
-*/
-
-
 /* 
 Used the same name as the function created (presumably) by Colva for groups.
   INPUT: a subalgebra, L, of the matrix Lie algebra gl(V), dim(V) = n
@@ -522,8 +642,13 @@ return AUT;
 
 end intrinsic;
 
+
+
+
                 /* ----------------- DELETE ---------------- */
 // THIS WILL BE DELETED ONCE I'vE EXTRACTED EVERYTHING I NEED FROM IT.
+
+/*
 intrinsic SimilaritiesOfSemisimpleLieModule (L::AlgMatLie, d::RngIntElt :
                 E := [ ], F := [ ], H := [ ]) -> GrpMat
 { Construct the group of similarites of the given (completely reducible) representation.}
@@ -827,4 +952,5 @@ assert IsIrreducible (RModule (Jis));
      
 return NN, N;     
 end intrinsic;
+*/
 

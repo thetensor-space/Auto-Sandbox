@@ -300,17 +300,93 @@ MySemisimpleMatrixAlgebra := function (k, stypes, rtypes : SCRAMBLE := false)
 return L;
 end function; 
 
+
 /*
   Given irreducible representations of L1 and L2, return their tensor
   product––an irreducible representation of L1 + L2.
 */
 MyTensorProduct := function (L1, L2)
-  n := Degree (L1) * Degree (L2);
-  MLie := MatrixLieAlgebra (BaseRing (L1), n);
-  L := sub < MLie | [ KroneckerProduct (Matrix (L1.i), Matrix (L2.j)) :
-                            i in [1..Ngens (L1)] , j in [1..Ngens (L2)] ] >;
-return L;
+  n1 := Degree (L1);
+  n2 := Degree (L2);
+  k := BaseRing (L1);   assert k eq BaseRing (L2);
+  MLie := MatrixLieAlgebra (BaseRing (L1), n1 * n2);
+  f1 := hom < Generic (L1) -> MLie | 
+         x :-> MLie!(KroneckerProduct (x, Identity (MatrixAlgebra (k, n2)))) >;
+  f2 := hom < Generic (L2) -> MLie | 
+         x :-> MLie!(KroneckerProduct (Identity (MatrixAlgebra (k, n1)), x)) >;
+  J1 := sub < MLie | [ L1.i @ f1 : i in [1..Ngens (L1)] ] >;
+  J2 := sub < MLie | [ L2.i @ f2 : i in [1..Ngens (L2)] ] >;
+  L := J1 + J2;
+return L, f1, f2;
 end function;
+
+
+/*
+  Designed to test conjugacy function for semisimple algebras.
+    * TYPE1 and TYPE2 are the iso types of the two minimal ideals of L.
+    * L < gl(V) is represented as U1 + U1 + U3, where:
+      U1 is the natural module for TYPE1
+      U2 is the natural module for TYPE2
+      U3 is the tensor product of these ... irreducible for TYPE1 + TYPE2
+  Function produces two scrambled copies of an algebra with this structure.
+*/
+SS_Construction1 := function (k, TYPE1, TYPE2)
+  X1 := MatrixLieAlgebra (TYPE1, k);
+  X2 := MatrixLieAlgebra (TYPE2, k);
+  n1 := Degree (X1);
+  n2 := Degree (X2);
+  Y, f1, f2 := MyTensorProduct (X1, X2);
+  n3 := Degree (Y);
+  MLie := MatrixLieAlgebra (k, n1 + n2 + n3);
+  L := sub < MLie |
+        [ DiagonalJoin (X1.i, DiagonalJoin (X2!0, X1.i @ f1)) : i in [1..Ngens (X1)] ] cat
+        [ DiagonalJoin (X1!0, DiagonalJoin (X2.i, X2.i @ f2)) : i in [1..Ngens (X2)] ]
+           >;
+  G := GL (n1 + n2 + n3, k);
+  g1 := Random (G);
+  g2 := Random (G);
+  L1 := sub < MLie | [ g1 * Matrix(L.i) * g1^-1 : i in [1..Ngens (L)] ] >;
+  L2 := sub < MLie | [ g2 * Matrix(L.i) * g2^-1 : i in [1..Ngens (L)] ] >;
+return L1, L2;
+end function;
+
+
+
+
+// block simple
+/*
+k := GF (5);
+type := "A2";
+L0 := LieAlgebra (type, k);
+NAT := 1; AD := 0;
+rho_nat := StandardRepresentation (L0);
+rho_ad := AdjointRepresentation (L0);
+n := NAT * Degree (Image (rho_nat)) + AD * Degree (Image (rho_ad));
+MLie := MatrixLieAlgebra (k, n);
+gens := [ MLie!0 : i in [1..Ngens (L0)] ];
+pos := 1;
+for i in [1..NAT] do
+    for j in [1..Ngens (L0)] do
+        InsertBlock (~gens[j], L0.j @ rho_nat, pos, pos);
+    end for;
+    pos +:= Degree (Image (rho_nat));
+end for;
+for i in [1..AD] do
+    for j in [1..Ngens (L0)] do
+        InsertBlock (~gens[j], L0.j @ rho_ad, pos, pos);
+    end for;
+    pos +:= Degree (Image (rho_ad));
+end for;
+L := sub < MLie | gens >;
+// scrambled copies
+g1 := Random (GL (n, k));   g2 := Random (GL (n, k));
+L1 := sub < MLie | [ g1 * Matrix (L.i) * g1^-1 : i in [1..Ngens (L)] ] >;
+L2 := sub < MLie | [ g2 * Matrix (L.i) * g2^-1 : i in [1..Ngens (L)] ] >;
+*/
+
+
+
+
 
 
 
