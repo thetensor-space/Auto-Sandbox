@@ -127,27 +127,6 @@ return IsNilpotent (ad_x);
 end intrinsic;
 
 
-intrinsic MyDerivationAlgebra (T::TenSpcElt) -> AlgMatLie , Tuple
-  {A version of DerivationAlgebra that returns representations on the three
-   associated modules.}
-    c := Dimension (Domain (T)[1]);
-    d := Dimension (Domain (T)[2]);
-    e := Dimension (Codomain (T));
-    D := DerivationAlgebra (T);
-    k := BaseRing (D);
-    n := Degree (D);
-    DU := sub < MatrixLieAlgebra (k, c) |
-                [ ExtractBlock (D.i, 1, 1, c, c) : i in [1..Ngens (D)] ] >;
-    DV := sub < MatrixLieAlgebra (k, d) |
-                [ ExtractBlock (D.i, c+1, c+1, d, d) : i in [1..Ngens (D)] ] >;
-    DW := sub < MatrixLieAlgebra (k, e) |
-                [ ExtractBlock (D.i, c+d+1, c+d+1, e, e) : i in [1..Ngens (D)] ] >;
-    fU := hom < D -> DU | x :-> DU!ExtractBlock (x, 1, 1, c, c) >;
-    fV := hom < D -> DU | x :-> DU!ExtractBlock (x, c+1, c+1, d, d) >;
-    fW := hom < D -> DU | x :-> DU!ExtractBlock (x, c+d+1, c+d+1, e, e) >;
-return D, <fU, fV, fW>;
-end intrinsic;
-
 
 /* 
     INPUT:
@@ -238,7 +217,19 @@ IS_CONJUGATE_IRREDUCIBLE := function (J1, E1, F1, J2, E2, F2)
      C2 := CrystalBasis (J2 : E := E2, F := F2);
      K1 := sub < Generic (J1) | [ C1 * Matrix (J1.i) * C1^-1 : i in [1..Ngens (J1)] ] >;
      K2 := sub < Generic (J2) | [ C2 * Matrix (J2.i) * C2^-1 : i in [1..Ngens (J2)] ] >;
-return K1 eq K2, C1^-1 * C2; 
+     C := C1^-1 * C2;
+     isit := (K1 eq K2);
+     if isit then
+          assert J2 eq sub < Generic (J1) | [ C^-1 * Matrix (J1.i) * C : i in [1..Ngens (J1)] ] >;
+          E1C := [ C^-1 * Matrix (E1[i]) * C : i in [1..#E1] ];
+          F1C := [ C^-1 * Matrix (F1[i]) * C : i in [1..#F1] ];
+          CHEV_EQ := forall { i : i in [1..#E1C] | E1C[i] eq Matrix (E2[i]) };
+          if not CHEV_EQ then
+               printf "\t\t   E1C =\n"; E1C;
+               printf "\t\t   E2 =\n"; E2;
+          end if;
+     end if;
+return isit, C; 
 end function; 
 
 /*
@@ -314,7 +305,7 @@ end function;
 
 intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
                  BoolElt, AlgMatElt
-  { Decide whether the matrix Lie algebras L1 and L2 are conjugate. }
+  { True iff L1 and L2 are conjugate in the ambient group of invertible matrices. }
   
   flag, LL1 := HasLeviSubalgebra (L1);
   require (flag and (L1 eq LL1)) : 
@@ -341,8 +332,8 @@ intrinsic IsConjugate (L1::AlgMatLie, L2::AlgMatLie : PARTITION := [ ]) ->
   /* next carry out the preprocessing for the conjugacy test */
   ID1, TYPES1, PART1, PERM1, SUMS1 := PREPROCESS_SEMISIMPLE (L1);
   ID2, TYPES2, PART2, PERM2, SUMS2 := PREPROCESS_SEMISIMPLE (L2);
-printf "SUMS1 dimensions are %o\n", [ Dimension (U) : U in SUMS1 ];
-printf "SUMS2 dimensions are %o\n", [ Dimension (U) : U in SUMS2 ];
+vprint MatrixLie, 1 : "summand dimensions of first Lie module are", [ Dimension (U) : U in SUMS1 ];
+vprint MatrixLie, 1 : "summand dimensions of second Lie module are", [ Dimension (U) : U in SUMS2 ];
   
   /* do the quick tests */
   if TYPES1 ne TYPES2 then
@@ -361,13 +352,13 @@ printf "SUMS2 dimensions are %o\n", [ Dimension (U) : U in SUMS2 ];
   
   /* test each possible ordering of summands in L2 */
   perms := [ pi : pi in PERM1];
-printf "|perms| = %o\n", #perms;
+vprintf MatrixLie, 1 : "testing %o", #perms; 
+vprintf MatrixLie, 1 : " permutations of the minimal ideals of the second Lie algebra";
   conj := false;   // keeps track of whether or not we've found a conjugating matrix
   s := 0;
   while ((s lt #perms) and (not conj)) do
        s +:= 1;
        pi := perms[s];
-printf "pi = %o\n", pi;
        good := true;   // keeps track of whether <pi> is giving a feasible
                        // ordering of ideals
        i := 0;
@@ -378,19 +369,19 @@ printf "pi = %o\n", pi;
             i +:= 1;
             U1 := SUMS1[i];
             d1 := Dimension (U1);
-printf "\ti = %o", i; printf "   dim(U1) = %o\n", d1;
             MLieU1 := MatrixLieAlgebra (k, d1);
             L1U1 := sub < MLieU1 |
-                    [ RESTRICT (Matrix (L1.i), U1) : i in [1..Ngens (L1)] ] >;
-            E1U1 := [ RESTRICT (Matrix(E1[i]), U1) : i in [1..#E1] ];
+                    [ RESTRICT (Matrix (L1.a), U1) : a in [1..Ngens (L1)] ] >;
+            E1U1 := [ RESTRICT (Matrix(E1[a]), U1) : a in [1..#E1] ];
             // some elements of E1 act trivially on U1 ... discard them
-            E1U1 := [ MLieU1!(E1U1[i]) : i in [1..#E1U1] | E1U1[i] ne 0 ];
-            F1U1 := [ RESTRICT (Matrix(F1[i]), U1) : i in [1..#F1] ];
+            E1U1 := [ MLieU1!(E1U1[a]) : a in [1..#E1U1] | E1U1[a] ne 0 ];
+            F1U1 := [ RESTRICT (Matrix(F1[a]), U1) : a in [1..#F1] ];
             // some elements of F1 act trivially on U1 ... discard them
-            F1U1 := [ MLieU1!(F1U1[i]) : i in [1..#F1U1] | F1U1[i] ne 0 ];
+            F1U1 := [ MLieU1!(F1U1[a]) : a in [1..#F1U1] | F1U1[a] ne 0 ];
             S1 := SUPPORT (ID1, U1);
-            poss2 := [ j : j in [1..#rem2] | S1 eq SUPPORT (ID2, rem2[j])^pi ];
-printf "\tS1 = %o", S1; printf "   poss2 = %o\n", poss2;
+            poss2 := [ b : b in [1..#rem2] | S1 eq SUPPORT (ID2, rem2[b])^pi 
+                                         and Dimension (rem2[b]) eq d1 ];
+
             found := false;   // keeps track of whether or not we've found a U2
                               // such that LU1 is conjugate to LU2
             j := 0;
@@ -398,18 +389,17 @@ printf "\tS1 = %o", S1; printf "   poss2 = %o\n", poss2;
                  j +:= 1;
                  U2 := rem2[poss2[j]];
                  d2 := Dimension (U2);
-printf "\t\tj = %o", j; printf "   dim(U2) = %o\n", d2;
                  MLieU2 := MatrixLieAlgebra (k, d2);
                  L2U2 := sub < MLieU2 |
-                         [ RESTRICT (Matrix (L2.i), U2) : i in [1..Ngens (L2)] ] >;
-                 E2U2 := [ RESTRICT (Matrix(E2[i]), U2) : i in [1..#E2] ];
+                         [ RESTRICT (Matrix (L2.a), U2) : a in [1..Ngens (L2)] ] >;
+                 E2U2 := [ RESTRICT (Matrix(E2[a]), U2) : a in [1..#E2] ];
                  // some elements of E2 act trivially on U2 ... discard them
-                 E2U2 := [ MLieU2!(E2U2[i]) : i in [1..#E2U2] | E2U2[i] ne 0 ];
-                 F2U2 := [ RESTRICT (Matrix(F2[i]), U2) : i in [1..#F2] ];
+                 E2U2 := [ MLieU2!(E2U2[a]) : a in [1..#E2U2] | E2U2[a] ne 0 ];
+                 F2U2 := [ RESTRICT (Matrix(F2[a]), U2) : a in [1..#F2] ];
                  // some elements of F2 act trivially on U2 ... discard them
-                 F2U2 := [ MLieU2!(F2U2[i]) : i in [1..#F2U2] | F2U2[i] ne 0 ];
+                 F2U2 := [ MLieU2!(F2U2[a]) : a in [1..#F2U2] | F2U2[a] ne 0 ];
                  isit, BC := IS_CONJUGATE_IRREDUCIBLE (L1U1, E1U1, F1U1, L2U2, E2U2, F2U2);
-printf "\t\tconjugate? %o\n", isit;
+vprintf MatrixLie, 1 : "\t\t restriction to summands conjugate? %o\n", isit;
                  if isit then
                       found := true;
                       Remove (~rem2, Position (rem2, U2));
@@ -423,25 +413,27 @@ printf "\t\tconjugate? %o\n", isit;
        end while;
        if (good) then
             D := DiagonalJoin (BLOCKS);
-            C1 := Matrix (&cat [ Basis (SUMS1[i]) : i in [1..m] ]);
-            C2 := Matrix (&cat [ Basis (newSUMS2[i]) : i in [1..m] ]);
+            C1 := Matrix (&cat [ [ (SUMS1[i]).j : j in [1..Ngens (SUMS1[i])] ] : i in [1..m] ]);
+            C2 := Matrix (&cat [ [ (newSUMS2[i]).j : j in [1..Ngens (SUMS2[i])] ] : i in [1..m] ]);
             L1C1 := sub < MLie | 
                      [ C1 * Matrix (L1.i) * C1^-1 : i in [1..Ngens (L1)] ] >;
             L2C2 := sub < MLie | 
                      [ C2 * Matrix (L2.i) * C2^-1 : i in [1..Ngens (L2)] ] >;
             L1C1D := sub < MLie |
-                      [ D * Matrix (L1C1.i) * D^-1 : i in [1..Ngens (L1C1)] ] >;
+                         [ D^-1 * Matrix (L1C1.i) * D : i in [1..Ngens (L1C1)] ] >;
             if L1C1D eq L2C2 then
                  conj := true;
             end if;
        end if;
   end while;
-  
+
   if (conj) then
-       C := C2^-1 * D * C1;
-assert L2 eq sub < MLie | [ C * Matrix (L1.i) * C^-1 : i in [1..Ngens (L1)] ] >;
+       C := C2^-1 * D^-1 * C1;
+       assert L2 eq sub < MLie | [ C * Matrix (L1.i) * C^-1 : i in [1..Ngens (L1)] ] >;
+vprint MatrixLie, 1 : "matrix Lie algebras are conjugate";
        return true, C;   
   else
+vprint MatrixLie, 1 : "matrix Lie algebras are not conjugate";
        return false, _;
   end if; 
   
@@ -635,6 +627,8 @@ intrinsic GLNormalizer (L::AlgMatLie : PARTITION := [ ]) -> GrpMat
   aut_gens := [ C^-1 * aut_gens[i] * C : i in [1..#aut_gens] ];
   AUT := sub < G | aut_gens , EXP >;  
 //"AUT / EXP has order", #AUT div #EXP;
+
+  // STILL NEED TO INSERT GENERATORS FOR THE GROUP PERMUTING ISOTYPIC COMPONENTS
   
 assert NORMALIZES_ALGEBRA (L, [ AUT.i : i in [1..Ngens (AUT)] ]); 
   
