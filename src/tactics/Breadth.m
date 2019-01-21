@@ -34,8 +34,13 @@ intrinsic BreadthScheme(T::TenSpcElt, r::RngIntElt ) -> Sch
 	return S;
 end intrinsic;
 
+/*
+	Property 1: degree(Sch) divides r
+	Property
+	Property 2: x on Sch => x@T = 0
+ */
 BreadthPropertyTest := function()
-    
+    return _;
 end function;
 
 intrinsic KBreadthScheme(K::Fld, T::TenSpcElt, r::RngIntElt ) -> Sch
