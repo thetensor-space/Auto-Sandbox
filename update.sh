@@ -65,6 +65,18 @@ else
     sh "$PKGDIR/CSS/install.sh"
 fi
 
+# StarAlge update
+if [ -f "$PKGDIR/StarAlge/update.sh" ]
+then
+    sh "$PKGDIR/StarAlge/update.sh"
+else
+    echo "Could not find StarAlge, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/algeboy/StarAlge
+    echo "Installing StarAlge..."
+    sh "$PKGDIR/StarAlge/install.sh"
+fi
+
 # TensorSpace update
 if [ -f "$PKGDIR/TensorSpace/update.sh" ]
 then

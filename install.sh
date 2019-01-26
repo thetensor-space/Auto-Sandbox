@@ -6,11 +6,12 @@ START="${HOME}/.magmarc"                # Magma start file location
 
 # Dependencies and .spec locations
 ATTACH1="AttachSpec(\"$PKGDIR/TensorSpace/TensorSpace.spec\");"
-ATTACH2="AttachSpec(\"$PKGDIR/Homotopism/Homotopism.spec\");"
-ATTACH3="AttachSpec(\"$PKGDIR/CSS/CSS.spec\");"
-ATTACH4="AttachSpec(\"$PKGDIR/Densor/Densor.spec\");"
-ATTACH5="AttachSpec(\"$PKGDIR/Filters/Filters.spec\");"
-ATTACH6="AttachSpec(\"$DIR/Automorphism.spec\");"
+ATTACH2="AttachSpec(\"$PKGDIR/StarAlge/StarAlge.spec\");"
+ATTACH3="AttachSpec(\"$PKGDIR/Homotopism/Homotopism.spec\");"
+ATTACH4="AttachSpec(\"$PKGDIR/CSS/CSS.spec\");"
+ATTACH5="AttachSpec(\"$PKGDIR/Densor/Densor.spec\");"
+ATTACH6="AttachSpec(\"$PKGDIR/Filters/Filters.spec\");"
+ATTACH7="AttachSpec(\"$DIR/Automorphism.spec\");"
 # MORE SOON
 
 
@@ -71,6 +72,18 @@ else
 fi
 
 
+# StarAlge install/ update
+if [ -f "$PKGDIR/StarAlge/update.sh" ]
+then
+    echo "StarAlge already installed, updating..."
+    sh "$PKGDIR/StarAlge/update.sh"
+else
+    echo "Could not find StarAlge, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/algeboy/StarAlge
+fi
+
+
 # TensorSpace install/ update
 if [ -f "$PKGDIR/TensorSpace/update.sh" ]
 then
@@ -92,7 +105,8 @@ echo "Dependencies downloaded."
 if [ -f "$START" ]
 then
     echo "Found a Magma start file"
-    for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"
+    for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"\
+        "$ATTACH7"
     do
         if grep -Fxq "$A" "$START"
         then
@@ -104,7 +118,8 @@ then
 else
     echo "Creating a Magma start file: $START"
     echo "// Created by an install file for Magma start up." > "$START"
-    for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"
+    for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"\
+        "$ATTACH7"
     do
         echo "$A" >> "$START"
     done
