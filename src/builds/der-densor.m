@@ -75,7 +75,7 @@ __der_densor := function(s)
   N := GLNormalizer(L : PARTITION := dims_rep);
   SetVerbose("MatrixLie", old_verb);
   printf &cat["=" : i in [1..79]] cat "\n";
-  DerivedFrom(~N, t, {0..2}, {0..2}); // Guessing on the last argument.
+  DerivedFrom(~N, t, {0..2}, {Maximum(S) : S in partition}); 
   projs := [**];
   for a in Reverse([0..2]) do
     pi := Induce(N, a);
@@ -96,6 +96,7 @@ __der_densor := function(s)
         j in [1..#Forms]];
       t_X := Tensor(Forms, 2, 1, t`Cat);
       k := Eltseq(t_X)[ind]^-1*Eltseq(t)[ind]^-1;
+      assert t eq k*t_X; // slow
       Append(~gens, <X @ projs[1], X @ projs[2], k*Matrix(X @ projs[3])>);
     end for;
 
@@ -134,7 +135,7 @@ __der_densor := function(s)
 
 
   // Step 6: Include isometries. (These might already be included???)
-  printf "Constructing the isometry group.\n";
+/*  printf "Constructing the isometry group.\n";
   try
     I := IsometryGroup(SystemOfForms(t) : DisplayStructure := false); 
     isom := [<X, X, GL(t`Codomain)!1> : X in Generators(I)];
@@ -142,11 +143,12 @@ __der_densor := function(s)
     I := PrincipalIsotopismGroup(t);
     projs := [];
     for i in [1..3] do
-      _, pi := Induce(I, 3-i);
+      pi := Induce(I, 3-i);
       Append(~projs, pi);
     end for;
     isom := [<X @ projs[i] : i in [1..3]> : X in Generators(I)];
-  end try;
+  end try;*/
+  isom := [];
 
 
   // Step 7: Deal with any radicals.
@@ -174,7 +176,7 @@ __der_densor := function(s)
   // Step 8: Put everything together
   over_grp := GL(&+[Nrows(pi_gens[1][i]) : i in [1..3]], K);
   pseudo_isom := sub< over_grp | [DiagonalJoin(x) : x in pi_gens] >;
-  pseudo_isom`DerivedFrom := <s, [1..3]>;
+  DerivedFrom(~pseudo_isom, s, {0..2}, {0..2} : Fused := false);
 
 
   // Sanity check

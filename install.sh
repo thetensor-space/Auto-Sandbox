@@ -60,15 +60,15 @@ else
 fi
 
 
-# CSS install/ update
-if [ -f "$PKGDIR/CSS/update.sh" ]
+# Sylver install/ update
+if [ -f "$PKGDIR/Sylver/update.sh" ]
 then
-    echo "CSS already installed, updating..."
-    sh "$PKGDIR/CSS/update.sh"
+    echo "Sylver already installed, updating..."
+    sh "$PKGDIR/Sylver/update.sh"
 else
-    echo "Could not find CSS, downloading..."
+    echo "Could not find Sylver, downloading..."
     cd "$PKGDIR"
-    git clone -q https://github.com/algeboy/CSS
+    git clone -q https://github.com/algeboy/Sylver
 fi
 
 

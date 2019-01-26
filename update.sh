@@ -53,16 +53,16 @@ else
     sh "$PKGDIR/Densor/install.sh"
 fi
 
-# CSS update
-if [ -f "$PKGDIR/CSS/update.sh" ]
+# Sylver update
+if [ -f "$PKGDIR/Sylver/update.sh" ]
 then
-    sh "$PKGDIR/CSS/update.sh"
+    sh "$PKGDIR/Sylver/update.sh"
 else
-    echo "Could not find CSS, downloading..."
+    echo "Could not find Sylver, downloading..."
     cd "$PKGDIR"
-    git clone -q https://github.com/algeboy/CSS
-    echo "Installing CSS..."
-    sh "$PKGDIR/CSS/install.sh"
+    git clone -q https://github.com/algeboy/Sylver
+    echo "Installing Sylver..."
+    sh "$PKGDIR/Sylver/install.sh"
 fi
 
 # StarAlge update
