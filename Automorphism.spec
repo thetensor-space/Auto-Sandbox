@@ -13,6 +13,10 @@
   	Util.m
   	char-spaces.m
         graded.m
+    builds
+    {
+      der-densor.m
+    }
   	pgroups
 		{
    		approximate.m
