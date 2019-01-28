@@ -17,6 +17,31 @@ git pull -q origin production
 echo "Now updating dependencies."
 
 
+# TameGenus update
+if [ -f "$PKGDIR/MatrixAlgebras/update.sh" ]
+then
+    sh "$PKGDIR/MatrixAlgebras/update.sh"
+else
+    echo "Could not find MatrixAlgebras, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/galios60/MatrixAlgebras
+    echo "Installing MatrixAlgebras..."
+    sh "$PKGDIR/MatrixAlgebras/install.sh"
+fi
+
+
+# TameGenus update
+if [ -f "$PKGDIR/TameGenus/update.sh" ]
+then
+    sh "$PKGDIR/TameGenus/update.sh"
+else
+    echo "Could not find TameGenus, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/algeboy/TameGenus
+    echo "Installing TameGenus..."
+    sh "$PKGDIR/TameGenus/install.sh"
+fi
+
 
 # Filters update
 if [ -f "$PKGDIR/Filters/update.sh" ]
