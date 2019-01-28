@@ -11,7 +11,8 @@ cd "$DIR"
 
 # Update main package
 echo "Updating Automorphism package."
-git pull -q origin master 
+echo "Currently updating 'production' branch."
+git pull -q origin production 
 
 echo "Now updating dependencies."
 

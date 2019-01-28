@@ -11,12 +11,12 @@ ATTACH3="AttachSpec(\"$PKGDIR/Homotopism/Homotopism.spec\");"
 ATTACH4="AttachSpec(\"$PKGDIR/Sylver/Sylver.spec\");"
 ATTACH5="AttachSpec(\"$PKGDIR/Densor/Densor.spec\");"
 ATTACH6="AttachSpec(\"$PKGDIR/Filters/Filters.spec\");"
-ATTACH7="AttachSpec(\"$DIR/Automorphism.spec\");"
+ATTACH7="AttachSpec(\"$DIR/Auto-Sandbox.spec\");"
 # MORE SOON
 
 
 
-echo "Automorphism.spec is in $DIR"
+echo "Auto-Sandbox.spec is in $DIR"
 
 
 echo "Dependencies will be downloaded to $PKGDIR"
