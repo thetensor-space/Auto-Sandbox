@@ -46,8 +46,13 @@ __der_densor := function(s)
   partition := RepeatPartition(TensorCategory(t));
   v := Valence(t);
   // James' data structure fix would improve this...
-  dims_rep := [Dimension(Frame(t)[v - Maximum(S)]) : S in partition];  
-
+  dims_rep := []; 
+  for a in Reverse([0..v-1]) do
+    assert exists(S){S : S in partition | a in S};
+    if a eq Maximum(S) then
+      Append(~dims_rep, Dimension(Frame(t)[v-a]));
+    end if;
+  end for;
 
   // Step 3: Check derivation algebra.
   printf "Computing the Levi decomposition.\n";
@@ -70,10 +75,10 @@ __der_densor := function(s)
   printf "Computing the normalizer of the derivation algebra.\n";
   printf "==== Output from GLNormalizer ";
   printf "================================\n";
-  old_verb := GetVerbose("MatrixLie");
-  SetVerbose("MatrixLie", 1);
+  old_verb := GetVerbose("MatrixAlgebras");
+  SetVerbose("MatrixAlgebras", 1);
   N := GLNormalizer(L : PARTITION := dims_rep);
-  SetVerbose("MatrixLie", old_verb);
+  SetVerbose("MatrixAlgebras", old_verb);
   printf &cat["=" : i in [1..79]] cat "\n";
   DerivedFrom(~N, t, {0..2}, {Maximum(S) : S in partition}); 
   projs := [**];
@@ -151,14 +156,22 @@ __der_densor := function(s)
   isom := [];
 
 
-  // Step 7: Deal with any radicals.
+  // Step 7: Deal with any radicals. James will fix this with HOF
   if &or[Dimension(r) gt 0 : r in R] then
-    rads := [<DiagonalJoin(GL(C[1])!1, x)*T[1]^-1, GL(s`Domain[2]), 
-      GL(s`Codomain)!1> : x in Generators(GL(R[1]))];
-    rads cat:= [<GL(s`Domain[1]), DiagonalJoin(GL(C[2])!1, x)*T[2]^-1,
-      GL(s`Codomain)!1> : x in Generators(GL(R[2]))];
-    rads cat:= [<GL(s`Domain[1])!1, GL(s`Domain[2])!1, 
-      T[3]^-1*DiagonalJoin(GL(C[3])!1, x)> : x in Generators(GL(R[3]))]; 
+    Id := [*IdentityMatrix(K, Dimension(C[i])) : i in [1..3]*];
+    rads :=[];
+    if Dimension(R[1]) gt 0 then
+      rads cat:= [<DiagonalJoin(Id[1], x)*T[1]^-1, GL(s`Domain[2]), 
+        GL(s`Codomain)!1> : x in Generators(GL(R[1]))];
+    end if;
+    if Dimension(R[2]) gt 0 then
+      rads cat:= [<GL(s`Domain[1]), DiagonalJoin(Id[2], x)*T[2]^-1,
+        GL(s`Codomain)!1> : x in Generators(GL(R[2]))];
+    end if;
+    if Dimension(R[3]) gt 0 then
+      rads cat:= [<GL(s`Domain[1])!1, GL(s`Domain[2])!1, 
+        T[3]^-1*DiagonalJoin(GL(C[3])!1, x)> : x in Generators(GL(R[3]))]; 
+    end if;
     gens := [<DiagonalJoin(x[1], GL(R[1])!1)*T[1]^-1, 
       DiagonalJoin(x[2], GL(R[2])!1)*T[2]^-1, 
       T[3]^-1*DiagonalJoin(x[3], GL(R[3])!1)> : x in gens];
