@@ -11,8 +11,9 @@ ATTACH3="AttachSpec(\"$PKGDIR/Homotopism/Homotopism.spec\");"
 ATTACH4="AttachSpec(\"$PKGDIR/Sylver/Sylver.spec\");"
 ATTACH5="AttachSpec(\"$PKGDIR/Densor/Densor.spec\");"
 ATTACH6="AttachSpec(\"$PKGDIR/Filters/Filters.spec\");"
-ATTACH7="AttachSpec(\"$DIR/Auto-Sandbox.spec\");"
-# MORE SOON
+ATTACH7="AttachSpec(\"$PKGDIR/MatrixAlgebras/MatrixAlgebras.spec\");"
+ATTACH8="AttachSpec(\"$PKGDIR/TameGenus/TameGenus.spec\");"
+ATTACH9="AttachSpec(\"$DIR/Auto-Sandbox.spec\");"
 
 
 
@@ -22,6 +23,29 @@ echo "Auto-Sandbox.spec is in $DIR"
 echo "Dependencies will be downloaded to $PKGDIR"
 
 
+
+# TameGenus install/ update
+if [ -f "$PKGDIR/TameGenus/update.sh" ]
+then
+    echo "TameGenus already installed, updating..."
+    sh "$PKGDIR/TameGenus/update.sh"
+else
+    echo "Could not find TameGenus, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/algeboy/TameGenus
+fi
+
+
+# MatrixAlgebras install/ update
+if [ -f "$PKGDIR/MatrixAlgebras/update.sh" ]
+then
+    echo "MatrixAlgebras already installed, updating..."
+    sh "$PKGDIR/MatrixAlgebras/update.sh"
+else
+    echo "Could not find MatrixAlgebras, downloading..."
+    cd "$PKGDIR"
+    git clone -q https://github.com/galois60/MatrixAlgebras
+fi
 
 
 # Filters install/ update
@@ -106,7 +130,7 @@ if [ -f "$START" ]
 then
     echo "Found a Magma start file"
     for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"\
-        "$ATTACH7"
+        "$ATTACH7" "$ATTACH8" "$ATTACH9"
     do
         if grep -Fxq "$A" "$START"
         then
@@ -119,7 +143,7 @@ else
     echo "Creating a Magma start file: $START"
     echo "// Created by an install file for Magma start up." > "$START"
     for A in "$ATTACH1" "$ATTACH2" "$ATTACH3" "$ATTACH4" "$ATTACH5" "$ATTACH6"\
-        "$ATTACH7"
+        "$ATTACH7" "$ATTACH8" "$ATTACH9"
     do
         echo "$A" >> "$START"
     done

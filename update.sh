@@ -10,8 +10,9 @@ PKGDIR="$(dirname $DIR)"
 cd "$DIR" 
 
 # Update main package
-echo "Updating Automorphism package."
+echo "Updating Auto-Sandbox package."
 echo "Currently updating 'production' branch."
+git checkout production
 git pull -q origin production 
 
 echo "Now updating dependencies."
@@ -24,7 +25,7 @@ then
 else
     echo "Could not find MatrixAlgebras, downloading..."
     cd "$PKGDIR"
-    git clone -q https://github.com/galios60/MatrixAlgebras
+    git clone -q https://github.com/galois60/MatrixAlgebras
     echo "Installing MatrixAlgebras..."
     sh "$PKGDIR/MatrixAlgebras/install.sh"
 fi
