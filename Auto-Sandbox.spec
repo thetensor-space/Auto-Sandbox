@@ -14,6 +14,7 @@
         graded.m
     builds
     {
+      BUILD.m
       der-densor.m
     }
   	pgroups

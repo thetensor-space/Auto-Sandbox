@@ -8,26 +8,14 @@
 __der_densor := function(s) 
 
   // Step 1: Remove radicals. 
-  printf "Removing the radicals.\n";
-  R := [*r : r in Radical(s)*];
-  printf "\tdim(Rad_U) = %o\n", Dimension(R[1]);
-  printf "\tdim(Rad_V) = %o\n", Dimension(R[2]);
-  C := [*Complement(Domain(s)[i], R[i]) : i in [1..2]*];
-  T := [*Matrix(Basis(C[i]) cat Basis(R[i])) : i in [1..2]*];
-  C cat:= [*Image(s)*];
-  R cat:= [*Complement(Codomain(s), C[3])*];
-  printf "\tdim(Rad_W) = %o\n", Dimension(R[3]);
-  T cat:= [*Matrix(Basis(C[3]) cat Basis(R[3]))*];
-  F := SystemOfForms(s);
-  if &or[Dimension(r) gt 0 : r in R] then
-    Forms := [T[1]*X*Transpose(T[2]) : X in F];
-    Forms := [&+[T[3][i][j]*Forms[i] : i in [1..#Forms]] : j in [1..#Forms]];
-    Forms := [ExtractBlock(X, 1, 1, Dimension(C[1]), Dimension(C[2])) : 
-      X in Forms][1..Dimension(C[3])];
-    t := Tensor(Forms, 2, 1, s`Cat);
+  t := FullyNondegenerateTensor(s);
+  if [Dimension(X) : X in Frame(s)] ne [Dimension(X) : X in Frame(t)] then
+    printf "Nontrivial radical. Need a fix from James, but continuing with the";
+    printf " nondegenerate part.\n";
   else
-    t := s; // This keeps all the previous calculations saved.
+    t := s;
   end if;
+
   K := BaseRing(t);
 
 
@@ -43,6 +31,7 @@ __der_densor := function(s)
   densor := UniversalDensorSubspace(t); // MAIN BOTTLENECK
   printf "\tdim(densor) = %o\n", Dimension(densor);
 
+  // Get PARTITION for Pete
   partition := RepeatPartition(TensorCategory(t));
   v := Valence(t);
   // James' data structure fix would improve this...
@@ -80,6 +69,7 @@ __der_densor := function(s)
   N := GLNormalizer(L : PARTITION := dims_rep);
   SetVerbose("MatrixAlgebras", old_verb);
   printf &cat["=" : i in [1..79]] cat "\n";
+  // Gives us a way to break up block structure easily
   DerivedFrom(~N, t, {0..2}, {Maximum(S) : S in partition}); 
   projs := [**];
   for a in Reverse([0..2]) do
@@ -157,7 +147,7 @@ __der_densor := function(s)
 
 
   // Step 7: Deal with any radicals. James will fix this with HOF
-  if &or[Dimension(r) gt 0 : r in R] then
+/*  if &or[Dimension(r) gt 0 : r in R] then
     Id := [*IdentityMatrix(K, Dimension(C[i])) : i in [1..3]*];
     rads :=[];
     if Dimension(R[1]) gt 0 then
@@ -183,7 +173,8 @@ __der_densor := function(s)
     pi_gens := gens cat isom cat rads;
   else
     pi_gens := gens cat isom;
-  end if;
+  end if;*/
+  pi_gens := gens cat isom;
 
 
   // Step 8: Put everything together
@@ -194,15 +185,18 @@ __der_densor := function(s)
 
   // Sanity check
   printf "Sanity check.\n";
+  Forms := SystemOfForms(t);
   for i in [1..10] do
     X := Random(pseudo_isom);
     pi2 := Induce(pseudo_isom, 2);
     pi1 := Induce(pseudo_isom, 1);
     pi0 := Induce(pseudo_isom, 0);
-    if not IsHomotopism(s, s, [*X @ pi2, X @ pi1, X @ pi0*]) then
-      printf "\tWARNING: did not pass sanity test! Something is wrong.\n";
-      break;
-    end if;
+    assert [(X @ pi2)*F*Transpose(X @ pi1) : F in Forms] eq 
+        [&+[(X @ pi0)[i][j]*Forms[i] : i in [1..#Forms]] : j in [1..#Forms]];
+    //if not IsHomotopism(t, t, [*X @ pi2, X @ pi1, X @ pi0*]) then
+    //  printf "\tWARNING: did not pass sanity test! Something is wrong.\n";
+    //  break;
+    //end if;
   end for;
 
   return pseudo_isom;
