@@ -245,7 +245,7 @@ __report := function(U,L, piV,piW)
   // This is for developing the tool, it profiles what is changing.
   // Some of this is not worth computing so should be turned off after testing.
   
-  __THE_INDEX := ISA(Type(L), BoolElt) select LMGOrder(U) else LMGIndex(U,L);
+  __THE_INDEX := ISA(Type(L), BoolElt) select LMGOrder(U) else LMGOrder(U) div LMGOrder(L);//LMGIndex(U,L);
   bits := Ceiling(Log(2,__THE_INDEX));
   p := Characteristic(BaseRing(U));
 //  vprint Autotopism, 1 : "INDEX:\t\t\t\t",	__THE_INDEX,
