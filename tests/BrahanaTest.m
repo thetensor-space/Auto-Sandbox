@@ -8,7 +8,7 @@ load "../examples/dual.m";
 BrahanaTest := function(p)
 	B := BrahanaList(p);
 	orders := [0 : i in [1..#B]];
-	times := [];
+	times := [* *];
 	failed := 0;
 	for i in [1..#B] do
 		print "";
@@ -18,7 +18,8 @@ BrahanaTest := function(p)
 		t := Cputime();
 	try
 		U,L := AutomorphismGroupByInvariants(D);
-		Append(~times, Cputime(t) );
+		s := Cputime(t);
+		Append(~times, s  );
 		if ISA(Type(L),GrpMat) and not( LMGOrder(U) eq LMGOrder(L) ) then
 			print "Gap in order", LMGOrder(U), ":", LMGOrder(L);
 	 	end if;
