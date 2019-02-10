@@ -2,11 +2,12 @@
   src
   {
   	GlobalVars.m
-    norm-Lie.m
+     norm-Lie.m
   	isom-test.m
   	auto.m
   	inv-norm.m
   	projective.m
+     graph.m
   	breadth.m
   	exponentiate.m
   	Util.m
