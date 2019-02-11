@@ -231,3 +231,22 @@ __Adjoint_Solve := function (S, T)
 	return sub < MS | [ MS!b : b in basis ] >;
 end function;
 
+
+/* try to find a small generating set for a group U */
+intrinsic ReduceGenerators (H::Grp) -> Grp
+  { Redefine H on a small set of generators. }
+    n := Ngens (H);
+    d := 2; c := 0; NmrTrials := 10;
+    while d lt n do
+       L := sub < H | [ Random (H): i in [1..d] ] >;
+       RandomSchreier (L);
+       if #L eq #H then
+          return L;
+       end if;
+       c +:= 1;
+       if c eq NmrTrials then c := 0; d +:= 1; end if;
+    end while;
+return H;
+end intrinsic;
+
+

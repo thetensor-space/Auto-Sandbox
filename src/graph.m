@@ -1,6 +1,7 @@
 /* functions that use labels on graphs (or projective) geometries to cut down searches */
 
-intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt) -> GrpMat , Map , SeqEnum
+intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt : TIMER := false) 
+          -> GrpMat , Map , SeqEnum
   { Compute the action of G on n-subspaces of its natural module. }
   
   k := BaseRing (G);
@@ -19,9 +20,10 @@ intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt) -> GrpMat , Map , SeqEnum
        X := { x + y : x in P , y in P | x ne y };
   end if;
   X := [ x : x in X ];
-  vprint Autotopism, 2 : "   [ ProjectiveAction: time to build all",n,"-spaces:", Cputime (tt),"]";
+  if TIMER then "    time to build all",n,"-spaces:", Cputime (tt); end if;
  
   // compute permutation action of the generators of G
+  tt := Cputime ();
   gens := [ ];
   S := SymmetricGroup (#X);
   tt := Cputime ();
@@ -32,14 +34,22 @@ intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt) -> GrpMat , Map , SeqEnum
       end for;
       Append (~gens, S!perm);
   end for;
+<<<<<<< HEAD
   vprint Autotopism, 2 : "   [ ProjectiveAction: time to build permutation gens:", Cputime (tt),"]";
+=======
+  if TIMER then "    time to construct permutation group:", Cputime (tt); end if;
+>>>>>>> GRAPH
   
   tt := Cputime ();
   H := sub < S | gens >;
   RandomSchreier (H);
   RandomSchreier (G);
   f := hom < G -> H | gens >;
+<<<<<<< HEAD
   vprint Autotopism, 2 : "   [ ProjectiveAction: time to build homomorphism:", Cputime (tt),"]";
+=======
+  if TIMER then "    time to construct homomorphism:", Cputime (tt); end if;
+>>>>>>> GRAPH
   
 return H, f, X;
 
@@ -84,39 +94,39 @@ end function;
          accept the described input and produce Aut(X)-invariant labels.
      
   OPTIONAL INPUT:
-     (5) L = LOWER, a known subgroup of the restriction A_W of A = Aut(X) to W;
-         this will immediately be set to the identity of GL(W) if it is not
-         specified. (We do not yet see a direct use for L in the procedure.)
-     (6) U = UPPER, a known overgroup of this restriction; this will immediately
-         be set to GL(W) if it is not specified.
+     (5) UPPER, a known overgroup of the restriction of Aut(X) to W; 
+         this will default to GL(W) if it is not specified.
          
   OUTPUT:
-     (a) A group H satisfying L < Aut(X)_W < H < U < GL(W).
-HOW WE KNOW THIS ...
-     (b) The H-orbits on the points of W.
+     (a) A group U satisfying Aut(X)_W < U < UPPER < GL(W).
+         We know where U lies in this chain because it is built as a subgroup of
+         upper and it stabilizes an Aut(X)-invariant partition of PG_0(W)
+     (b) The U-orbits on PG_0(W).
 */
-intrinsic LabelledProjectiveSpace (t::TenSpcElt, W::ModTupFld, point_label::UserProgram,
-        line_label::UserProgram : UPPER := false, TIMER := false) -> GrpMat, SeqEnum
+intrinsic LabelledProjectiveSpace (
+     t::TenSpcElt, W::ModTupFld, point_label::UserProgram, line_label::UserProgram : 
+            UPPER := false, TIMER := false
+                                  ) -> GrpMat, SeqEnum
   { Use labels on PG(W) to construct an overgroup of Aut(t)|_W. }
   
   e := Dimension (W);
   k := BaseRing (W);
   G := GL (e, k);
-  
-  
+   
   // set up U
   if Type (UPPER) eq BoolElt then
        U := G;
   else
        require (Type (UPPER) eq GrpMat) and (Degree (UPPER) eq e) and (BaseRing (UPPER) eq k) :
             "optional argument UPPER must be a subgroup of GL(W)";
+       // change the action of U to be consistant with our interpretation of points
        U := sub < G | [ Transpose (UPPER.i) : i in [1..Ngens (UPPER)] ] >;
   end if;
   
   vprint Autotopism, 2 : "initially, |U| =", #U;
-  vprint Autotopism, 2 : "  ";
   
   // induce U on the points P of PG(W) and then label P using the labeling function
+<<<<<<< HEAD
   UP, fP, P := ProjectiveAction (U, 1);
 <<<<<<< HEAD
 tt := Cputime ();
@@ -160,6 +170,9 @@ tt := Cputime ();
   U := UM @@ fM;
 vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
 =======
+=======
+  UP, fP, P := ProjectiveAction (U, 1 : TIMER := TIMER);
+>>>>>>> GRAPH
   tt := Cputime ();
   oP := Orbits (UP);
   if TIMER then "time to compute UP-orbits:", Cputime (tt); end if;
@@ -172,6 +185,7 @@ vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   oP := [ { Position (P, x[i]) : i in [1..#x] } : x in partP ];
   tt := Cputime ();
   UP := Stabiliser (UP, oP);
+  UP := ReduceGenerators (UP);
   if TIMER then "time to compute stabiliser of point partition:", Cputime (tt); end if;
       vprint Autotopism, 2 : "UP has", Ngens (UP), "generators";
   tt := Cputime ();
@@ -182,7 +196,7 @@ vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   vprint Autotopism, 2 : "  ";
   
   // induce U on the lines M of PG(W) and then label L using its labeling function
-  UM, fM, M := ProjectiveAction (U, 2);
+  UM, fM, M := ProjectiveAction (U, 2 : TIMER := TIMER);
   tt := Cputime ();
   oM := Orbits (UM);
   if TIMER then "time to compute UM-orbits:", Cputime (tt); end if;
@@ -195,6 +209,7 @@ vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   oM := [ { Position (M, x[i]) : i in [1..#x] } : x in partM ];
   tt := Cputime ();
   UM := Stabiliser (UM, oM);
+  UM := ReduceGenerators (UM);
   if TIMER then "time to compute stabiliser of line partition:", Cputime (tt); end if;
   tt := Cputime ();
   U := UM @@ fM;
@@ -203,11 +218,18 @@ vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   
   vprint Autotopism, 2 : "now that U stabilizes the line partition, |U| =", #U;
   
-  // TBD : induce U on points again, compute orbits, recalculate partP
+  // induce U on points again, compute orbits, recalculate partP
+  UP := U @ fP;
+  tt := Cputime ();
+  oP := Orbits (UP);
+  if TIMER then "time to re-compute UP-orbits:", Cputime (tt); end if;
+  partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
+	  vprint Autotopism, 2 : "the final point partition has", #partP, "part(s)";
   
-  V := sub < Generic (U) | [ Transpose (U.i) : i in [1..Ngens (U)] ] >;
+  // convert U back to the correct action
+  U := sub < Generic (U) | [ Transpose (U.i) : i in [1..Ngens (U)] ] >;
      
-return V, partP; 
+return U, partP; 
   
 end intrinsic;
 
