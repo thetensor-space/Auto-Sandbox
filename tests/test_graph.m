@@ -94,6 +94,7 @@ end function;
 // produces a random bimap k^b x k^c >--> k^e and does the same check as previous fn
 __RandomBimapTest := function (k, b, c, e : LAB := __slope_label)
   t := Tensor ([ Matrix (Random (KMatrixSpace (k, b, c))) : i in [1..e] ], 2, 1);
+  W := Codomain (t);
   ttt := Cputime ();
   U := LabelledProjectiveSpace (t, W, __rank_label, LAB);
   ULIFT := { h : h in U | LiftIsotopism (t, t, h) };
@@ -111,11 +112,11 @@ load "examples/brahana/present.m";
 load "examples/dual.m";
 p := 7;
 B := BrahanaList (p);
-__BrahanaTest := function (B, i : LAB := __slope_label)
+__BrahanaTest := function (i : LAB := __genus2_label)
   H := DualGroup (B[i]);
   t := pCentralTensor (H);
   W := Codomain (t);
-return LabelledProjectiveSpace (t, W, __rank_label, LAB);
+return LabelledProjectiveSpace (t, W, __rank_label, LAB : TIMER := true);
 end function;
   
 

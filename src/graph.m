@@ -92,57 +92,69 @@ HOW WE KNOW THIS ...
      (b) The H-orbits on the points of W.
 */
 intrinsic LabelledProjectiveSpace (t::TenSpcElt, W::ModTupFld, point_label::UserProgram,
-        line_label::UserProgram : LOWER := false , UPPER := false) -> GrpMat, SeqEnum
+        line_label::UserProgram : UPPER := false, TIMER := false) -> GrpMat, SeqEnum
   { Use labels on PG(W) to construct an overgroup of Aut(t)|_W. }
   
   e := Dimension (W);
   k := BaseRing (W);
   G := GL (e, k);
   
-  // set up U and L
-  if Type (LOWER) eq BoolElt then
-       L := sub < G | Identity (G) >;
-  else
-       L := LOWER;
-       require (Type (L) eq GrpMat) and (Degree (L) eq e) and (BaseRing (L) eq k) :
-            "optional argument LOWER must be a subgroup of GL(W)";
-  end if;
   
+  // set up U
   if Type (UPPER) eq BoolElt then
        U := G;
   else
-       U := UPPER;
-       require (Type (U) eq GrpMat) and (Degree (U) eq e) and (BaseRing (U) eq k) :
+       require (Type (UPPER) eq GrpMat) and (Degree (UPPER) eq e) and (BaseRing (UPPER) eq k) :
             "optional argument UPPER must be a subgroup of GL(W)";
+       U := sub < G | [ Transpose (UPPER.i) : i in [1..Ngens (UPPER)] ] >;
   end if;
   
-  vprint Autotopism, 2 : "[G : U] =", #G div #U;
+  vprint Autotopism, 2 : "initially, |U| =", #U;
+  vprint Autotopism, 2 : "  ";
   
   // induce U on the points P of PG(W) and then label P using the labeling function
   UP, fP, P := ProjectiveAction (U, 1);
+  tt := Cputime ();
   oP := Orbits (UP);
+  if TIMER then "time to compute UP-orbits:", Cputime (tt); end if;
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
-	  vprint Autotopism, 2 : "the initial POINT partition has", #partP, "part(s)";
+	  vprint Autotopism, 2 : "the initial point partition has", #partP, "part(s)";
+  tt := Cputime ();
   partP := &cat [ __partition (Q, t, point_label) : Q in partP ];
-      vprint Autotopism, 2 : "after labeling, POINT partition has", #partP, "part(s)";
+  if TIMER then "time to compute labels on points:", Cputime (tt); end if;
+      vprint Autotopism, 2 : "after labeling, point partition has", #partP, "part(s)";
   oP := [ { Position (P, x[i]) : i in [1..#x] } : x in partP ];
+  tt := Cputime ();
   UP := Stabiliser (UP, oP);
+  if TIMER then "time to compute stabiliser of point partition:", Cputime (tt); end if;
+      vprint Autotopism, 2 : "UP has", Ngens (UP), "generators";
+  tt := Cputime ();
   U := UP @@ fP;
+  if TIMER then "time to compute pullback of U:", Cputime (tt); end if;
   
-  vprint Autotopism, 2 : "[G : U] =", #G div #U;
+  vprint Autotopism, 2 : "now that U stabilizes point partition, |U| =", #U;
+  vprint Autotopism, 2 : "  ";
   
   // induce U on the lines M of PG(W) and then label L using its labeling function
   UM, fM, M := ProjectiveAction (U, 2);
+  tt := Cputime ();
   oM := Orbits (UM);
+  if TIMER then "time to compute UM-orbits:", Cputime (tt); end if;
   partM := [ [ M[i] : i in oM[j] ] : j in [1..#oM] ];
-	  vprint Autotopism, 2 : "the initial LINE partition has", #partM, "part(s)";
+	  vprint Autotopism, 2 : "the initial line partition has", #partM, "part(s)";
+  tt := Cputime ();
   partM := &cat [ __partition (Q, t, line_label) : Q in partM ];
+  if TIMER then "time to compute labels on lines:", Cputime (tt); end if;
       vprint Autotopism, 2 : "after labeling, LINE partition has", #partM, "part(s)";
   oM := [ { Position (M, x[i]) : i in [1..#x] } : x in partM ];
+  tt := Cputime ();
   UM := Stabiliser (UM, oM);
+  if TIMER then "time to compute stabiliser of line partition:", Cputime (tt); end if;
+  tt := Cputime ();
   U := UM @@ fM;
+  if TIMER then "time to compute pullback of U:", Cputime (tt); end if;
   
-  vprint Autotopism, 2 : "[G : U] =", #G div #U;
+  vprint Autotopism, 2 : "now that U stabilizes the line partition, |U| =", #U;
   
   // TBD : induce U on points again, compute orbits, recalculate partP
   
