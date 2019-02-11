@@ -110,9 +110,9 @@ end function;
 load "examples/brahana/programs.m";
 load "examples/brahana/present.m";
 load "examples/dual.m";
-p := 7;
+p := 11;
 B := BrahanaList (p);
-__BrahanaTest := function (i : LAB := __genus2_label)
+__BrahanaTest := function (i : LAB := __slope_label)
   H := DualGroup (B[i]);
   t := pCentralTensor (H);
   W := Codomain (t);
