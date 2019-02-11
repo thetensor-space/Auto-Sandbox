@@ -11,9 +11,9 @@ cd "$DIR"
 
 # Update main package
 echo "Updating Auto-Sandbox package."
-echo "Currently updating 'production' branch."
-git checkout production
-git pull -q origin production 
+echo "Currently updating 'master' branch."
+git checkout master
+git pull -q origin master 
 
 echo "Now updating dependencies."
 

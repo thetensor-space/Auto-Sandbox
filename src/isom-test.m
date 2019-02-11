@@ -235,21 +235,29 @@ __test_pseudo_extension := function(T, Supergroup, Subgroup, h)
 	assert IsPseudoIsometry(T,finv^(-1),h^(-1));
   end if;
   z := DiagonalJoin( finv^(-1), h^(-1) );
-  if z in Subgroup then return false, Subgroup; end if;
-	  
-  assert z in Supergroup;
-  return true, sub<Supergroup| Subgroup,z>;
+
+  // EOB replace next 3 line 
+  // if z in Subgroup then return false, Subgroup; end if;
+  //
+  // assert z in Supergroup;
+  // return true, sub<Supergroup| Subgroup,z>;
+  
+  z := Generic(Supergroup) ! z;
+  if LMGIsIn (Subgroup, z) then return false, Subgroup; end if;
+  assert LMGIsIn (Supergroup, z);
+  return true, sub<Generic (Supergroup)| Subgroup,z>;
 end function;
 
 __report := function(U,L, piV,piW)
   // This is for developing the tool, it profiles what is changing.
   // Some of this is not worth computing so should be turned off after testing.
   
-  __THE_INDEX := ISA(Type(L), BoolElt) select LMGOrder(U) else LMGOrder(U) div LMGOrder(L);//LMGIndex(U,L);
+  __THE_INDEX := ISA(Type(L), BoolElt) select LMGOrder(U) else LMGOrder(U) div LMGOrder(L);
+   // EOB -- bug in Index when L is trivial 
+   //  __THE_INDEX := ISA(Type(L), BoolElt) select LMGOrder(U) else LMGIndex(U,L);
   bits := Ceiling(Log(2,__THE_INDEX));
   p := Characteristic(BaseRing(U));
-//  vprint Autotopism, 1 : "INDEX:\t\t\t\t",	__THE_INDEX,
-//  "(",bits, "bits)";
+  vprint Autotopism, 1 : "INDEX:\t\t\t\t",	__THE_INDEX, "(",bits, "bits)";
   
   UV := U @ piV;
   LV := L @ piV;
@@ -273,18 +281,18 @@ __SearchCosetsW := function(T, Supergroup, Subgroup, piV, piW, __THE_W_INDEX, MA
 	"Randomly searching cosets testing pseudo-isometry by Ivanyos-Qiao algorithm.";
 
   UW := Supergroup @ piW;
+  ouw := LMGOrder(UW);
   LW := Subgroup @ piW;
   t := Cputime();
   count := 0; 
-  Stop := Min(MAX, __THE_W_INDEX div 2); // quit if you have searched half the space.
+  My_Search_Limit := 2^20;
+  Stop := Min(My_Search_Limit, __THE_W_INDEX div 2); // quit if you have searched half the space.
   while (count lt Stop) and (__THE_W_INDEX gt __SMALL) do
-	h := Random(Supergroup@piW);
-	new, Subgroup := __test_pseudo_extension(T,Supergroup, Subgroup, h);
+	h := Random(UW);
+	new, Subgroup := __test_pseudo_extension(T, Supergroup, Subgroup, h);
 	if new then
 	  vprint Autotopism, 2 : "Found pseudo-isometry by Ivanyos-Qiao algorithm.";
-	  UW := Supergroup @ piW;
 	  LW := Subgroup @ piW;
-	  ouw := LMGOrder(UW);
 	  olw := LMGOrder(LW);
 	  __THE_W_INDEX := ouw div olw;
 	  // Adapt how long you will search at random if it starts to get small.
@@ -316,18 +324,21 @@ __SearchCosetsW := function(T, Supergroup, Subgroup, piV, piW, __THE_W_INDEX, MA
   // End of the line, only a small coset space search it all.
   //------------------------------------------------------------------------------------
   // Caution: the # of cosets is small, but the action of Supergroup
-  // on V wedge V is still potentially quit large. Need a secondary
+  // on V wedge V is still potentially quite large. Need a secondary
   // test to know if that would be profitable, here we continue working
   // on the cosets.
   //------------------------------------------------------------------------------------
   vprint Autotopism, 1 : "Orderly search.";
   t2 := Cputime();
-  C := Set(LMGRightTransversal(UW, LW));
+  vprint Autotopism, 1: "First call to LMGRightTransversal";
+time  C := Set(LMGRightTransversal(UW, LW));
   if __SANITY_CHECK then
   	assert #C eq __THE_W_INDEX;
   end if;
-  ouw := LMGOrder(Supergroup@piW);
-  while #C gt 0 do
+  Exclude (~C, Rep (C)^0);
+  // ouw := LMGOrder(Supergroup@piW);
+  olw := LMGOrder (LW);
+  while #C gt 0 and ouw gt olw do
 	//Grab a random coset.
 	h := Random(C);
 	Exclude(~C,h);
@@ -338,14 +349,13 @@ __SearchCosetsW := function(T, Supergroup, Subgroup, piV, piW, __THE_W_INDEX, MA
 	  LW := Subgroup @ piW;
 	  olw := LMGOrder(LW);
 	  if #C gt (ouw div olw) then 
-		  C := Set(LMGRightTransversal(UW,LW));
-		  __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
+		time  C := Set(LMGRightTransversal(UW,LW));
+        	  __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
 	  end if;
 	end if;
 	if (#C mod 500) eq 0 then 
 		vprint Autotopism, 2 : "Still left to search ", #C;
 	end if;
-	
   end while;
   t2 := Cputime(t2);
   vprint Autotopism, 1 : "Small set search time ", t2;
@@ -502,12 +512,17 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
 */
 
   // Work down the cosets, randomly-------------------------------------------------------
-  if __THE_W_INDEX lt MAX then
+  // EOB -- initiate search for lifting 
+   Supergroup, Subgroup, t := __SearchCosetsW(T, Supergroup,Subgroup,piV, piW, __THE_W_INDEX, MAX);
+   vprint Autotopism, 1 : "Total time ", t;
+
+  /* if __THE_W_INDEX lt MAX then
 	  Supergroup, Subgroup, t := __SearchCosetsW(T, Supergroup,Subgroup,piV, piW, __THE_W_INDEX, MAX);
 	  vprint Autotopism, 1 : "Total time ", t;
 	else
 		vprint Autotopism, 1 : "Aborting, index too large.";
-   end if;
+    end if;
+   */
  
 
   // Guaranteed that the subgroup is right.
