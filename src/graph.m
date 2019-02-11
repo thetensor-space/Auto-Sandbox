@@ -24,6 +24,7 @@ intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt) -> GrpMat , Map , SeqEnum
   // compute permutation action of the generators of G
   gens := [ ];
   S := SymmetricGroup (#X);
+  tt := Cputime ();
   for i in [1..Ngens (G)]  do
       perm := [ ];
       for x in X do
@@ -31,11 +32,14 @@ intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt) -> GrpMat , Map , SeqEnum
       end for;
       Append (~gens, S!perm);
   end for;
+  vprint Autotopism, 2 : "   [ ProjectiveAction: time to build permutation gens:", Cputime (tt),"]";
   
+  tt := Cputime ();
   H := sub < S | gens >;
   RandomSchreier (H);
   RandomSchreier (G);
   f := hom < G -> H | gens >;
+  vprint Autotopism, 2 : "   [ ProjectiveAction: time to build homomorphism:", Cputime (tt),"]";
   
 return H, f, X;
 
@@ -120,27 +124,46 @@ intrinsic LabelledProjectiveSpace (t::TenSpcElt, W::ModTupFld, point_label::User
   
   // induce U on the points P of PG(W) and then label P using the labeling function
   UP, fP, P := ProjectiveAction (U, 1);
+tt := Cputime ();
   oP := Orbits (UP);
+vprint Autotopism, 2 : "computed orbits under UP in time", Cputime (tt);
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
 	  vprint Autotopism, 2 : "the initial POINT partition has", #partP, "part(s)";
+tt := Cputime ();
   partP := &cat [ __partition (Q, t, point_label) : Q in partP ];
+vprint Autotopism, 2 : "labelled the POINTS in time", Cputime (tt);
       vprint Autotopism, 2 : "after labeling, POINT partition has", #partP, "part(s)";
   oP := [ { Position (P, x[i]) : i in [1..#x] } : x in partP ];
+tt := Cputime ();
   UP := Stabiliser (UP, oP);
+vprint Autotopism, 2 : "constructed stabiliser of partition in time", Cputime (tt);
+vprint Autotopism, 2 : "stabiliser has", Ngens (UP), "generators";
+tt := Cputime ();
   U := UP @@ fP;
+vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   
-  vprint Autotopism, 2 : "[G : U] =", #G div #U;
+  vprint Autotopism, 2 : "[G : U] =", #G div #U;  "  ";
+  
   
   // induce U on the lines M of PG(W) and then label L using its labeling function
   UM, fM, M := ProjectiveAction (U, 2);
+tt := Cputime ();
   oM := Orbits (UM);
+vprint Autotopism, 2 : "computed orbits under UM in time", Cputime (tt);
   partM := [ [ M[i] : i in oM[j] ] : j in [1..#oM] ];
 	  vprint Autotopism, 2 : "the initial LINE partition has", #partM, "part(s)";
+tt := Cputime ();
   partM := &cat [ __partition (Q, t, line_label) : Q in partM ];
+vprint Autotopism, 2 : "labelled the LINES in time", Cputime (tt);
       vprint Autotopism, 2 : "after labeling, LINE partition has", #partM, "part(s)";
   oM := [ { Position (M, x[i]) : i in [1..#x] } : x in partM ];
+tt := Cputime ();
   UM := Stabiliser (UM, oM);
+vprint Autotopism, 2 : "constructed stabiliser of partition in time", Cputime (tt);
+vprint Autotopism, 2 : "stabiliser has", Ngens (UP), "generators";
+tt := Cputime ();
   U := UM @@ fM;
+vprint Autotopism, 2 : "computed pullback to GL(W) in time", Cputime (tt);
   
   vprint Autotopism, 2 : "[G : U] =", #G div #U;
   
