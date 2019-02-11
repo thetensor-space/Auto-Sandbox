@@ -104,6 +104,19 @@ __RandomBimapTest := function (k, b, c, e : LAB := __slope_label)
   "   |LIFT| =", #LIFT;
 return LIFT eq ULIFT;
 end function;  
+
+// Brahana tests
+load "examples/brahana/programs.m";
+load "examples/brahana/present.m";
+load "examples/dual.m";
+p := 7;
+B := BrahanaList (p);
+__BrahanaTest := function (B, i : LAB := __slope_label)
+  H := DualGroup (B[i]);
+  t := pCentralTensor (H);
+  W := Codomain (t);
+return LabelledProjectiveSpace (t, W, __rank_label, LAB);
+end function;
   
 
 

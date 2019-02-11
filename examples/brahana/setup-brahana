@@ -1,4 +1,3 @@
-load "../start";
 load "programs.m";
 load "present.m";
 
