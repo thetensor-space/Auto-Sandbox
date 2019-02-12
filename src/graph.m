@@ -62,6 +62,104 @@ __partition := function (S, X, labfn)
 return part;
 end function;
 
+                /*--- procedures for fingerprinting on bimaps ---*/
+     
+     // a basic fingerprint that distinguishes by dimensions of left- and right-radicals
+     procedure __basic_fingerprint (~part, s)
+          
+          F := SystemOfForms (s);
+          vprint Autotopism, 2 : 
+               "partition entered __basic_fingerprinting with", #part, "parts";
+          
+          npart := [ ];
+          for a in [1..#part] do
+               Q := part[a];
+               // try to refine Q
+               QUV := [* *];
+               for b in [1..#Q] do
+                    z := Q[b];
+                    zU := Nullspace (&+ [ (z.1)[i] * F[i] : i in [1..#F] ]);
+                    zV := Nullspace (&+ [ Transpose ((z.1)[i] * F[i]) : i in [1..#F] ]);
+                    Append (~QUV, < zU , zV >); 
+               end for;
+               dims := [ [ Dimension (QUV[i][j]) : j in [1,2] ] : i in [1..#QUV] ];
+               refQ := [ [ Q[b] : b in [1..#Q] | dims[b] eq pair ] : pair in Set (dims) ];
+               npart cat:= refQ;
+          end for;
+          
+          part := npart;
+          vprint Autotopism, 2 : 
+               "after basic_fingerprinting it has", #part, "parts";
+     
+     end procedure;
+     
+     
+     // a more refined fingerprint that uses subspace arrangements 
+     procedure __advanced_fingerprint (~part, s)
+          
+          F := SystemOfForms (s);
+          vprint Autotopism, 2 : 
+               "   partition entered __advanced_fingerprinting with", #part, "parts";
+          
+          // first, a basic fingerprint
+          npart := [ ];
+          UV := [ ];
+          Uspaces := [*  *];
+          Vspaces := [*  *];
+          for a in [1..#part] do
+               Q := part[a];
+               // try to refine Q
+               QUV := [* *];
+               for b in [1..#Q] do
+                    z := Q[b];
+                    zU := Nullspace (&+ [ (z.1)[i] * F[i] : i in [1..#F] ]);
+                    Append (~Uspaces, zU);
+                    zV := Nullspace (&+ [ Transpose ((z.1)[i] * F[i]) : i in [1..#F] ]);
+                    Append (~Vspaces, zV);
+                    Append (~QUV, < zU , zV >); 
+               end for;
+               dims := [ [ Dimension (QUV[i][j]) : j in [1,2] ] : i in [1..#QUV] ];
+               refQ := [ [ Q[b] : b in [1..#Q] | dims[b] eq pair ] : pair in Set (dims) ];
+               refUV := [ [* QUV[b] : b in [1..#Q] | dims[b] eq pair *] : pair in Set (dims) ];
+               npart cat:= refQ;
+               UV cat:= refUV;
+          end for;
+        
+          part := npart;
+          vprint Autotopism, 2 : 
+               "   after basic_fingerprinting it has", #part, "parts";
+                
+          // next, refine the partition using the arrangement of subspaces in U 
+          Usums := { X + Y : X in Uspaces, Y in Uspaces | X ne Y }; 
+          npart := [ ];
+          for a in [1..#part] do
+               Q := part[a];
+               D := [ ];   // distinct labels
+               colours := [ 0 : q in Q ];   // remember to spell colour correctly
+               for b in [1..#Q] do
+                    // signature counts incidences with joins of subspaces 
+                    sig := #{ Z : Z in Usums | (UV[a][b])[1] subset Z };
+                    flag := exists (c){ d : d in [1..#D] | sig eq D[d] };
+                    if flag then    // we have seen sig before
+                         colours[b] := c;
+                    else      // new sig, new colour
+                         Append (~D, sig);
+                         colours[b] := #D;
+                    end if;
+               end for;
+               // decompose Q into color classes
+               newQ := [ [ Q[i] : i in [1..#Q] | colours[i] eq c ] : c in [1..#D] ];
+               npart cat:= newQ;
+          end for;
+          
+          part := npart;
+          vprint Autotopism, 2 : 
+               "   after fingerprinting with (left) subspace arrangement it has", #part, "parts";
+               
+          // if we act differently on the left and right domain spaces, we repeat for V ...
+                
+     end procedure;
+
 
 
 /*
@@ -81,12 +179,19 @@ end function;
          although it may be more convenient to have greater flexibility.
      (4) An analogous function that labels lines (2-spaces) of PG(W).
      
-  IMPORTANT: The user is responsible for providing labeling functions that
-         accept the described input and produce Aut(X)-invariant labels.
-     
   OPTIONAL INPUT:
-     (5) UPPER, a known overgroup of the restriction of Aut(X) to W; 
+     (5) OVERGROUP -- a known overgroup of the restriction of Aut(X) to W; 
          this will default to GL(W) if it is not specified.
+     (6) FINGER_LEVEL -- indicates the level of fingerprinting we choose to
+         preprocess with: 0 = none, 1 = basic, 2 = advanced
+         Further options can perhaps be added.
+         
+  IMPORTANT: 
+     (*) The user is responsible for providing labeling functions that
+         accept the described input and produce Aut(X)-invariant labels.
+     (*) Unless we have a better point_label function than the one we currently
+         have that labels by rank, the basic point labelling is superseded by
+         fingerprinting (even at the basic level). 
          
   OUTPUT:
      (a) A group U satisfying Aut(X)_W < U < UPPER < GL(W).
@@ -94,10 +199,14 @@ end function;
          upper and it stabilizes an Aut(X)-invariant partition of PG_0(W)
      (b) The U-orbits on PG_0(W).
 */
+
 intrinsic LabelledProjectiveSpace (
      t::TenSpcElt, W::ModTupFld, point_label::UserProgram, line_label::UserProgram : 
-            UPPER := false, TIMER := false
+            OVERGROUP := false, 
+            FINGER_LEVEL := 2,
+            TIMER := false    // this will eventually be turned off
                                   ) -> GrpMat, SeqEnum
+                                  
   { Use labels on PG(W) to construct an overgroup of Aut(t)|_W. }
   
   e := Dimension (W);
@@ -105,57 +214,85 @@ intrinsic LabelledProjectiveSpace (
   G := GL (e, k);
    
   // set up U
-  if Type (UPPER) eq BoolElt then
+  if Type (OVERGROUP) eq BoolElt then
        U := G;
   else
-       require (Type (UPPER) eq GrpMat) and (Degree (UPPER) eq e) and (BaseRing (UPPER) eq k) :
+       require (Type (OVERGROUP) eq GrpMat) and (Degree (OVERGROUP) eq e) and 
+               (BaseRing (OVERGROUP) eq k) :
             "optional argument UPPER must be a subgroup of GL(W)";
        // change the action of U to be consistant with our interpretation of points
-       U := sub < G | [ Transpose (UPPER.i) : i in [1..Ngens (UPPER)] ] >;
+       U := sub < G | [ Transpose (OVERGROUP.i) : i in [1..Ngens (OVERGROUP)] ] >;
   end if;
   
   vprint Autotopism, 2 : "initially, |U| =", #U;
   
-  // induce U on the points P of PG(W) and then label P using the labeling function
+  // induce U on the points P of PG(W) 
   UP, fP, P := ProjectiveAction (U, 1 : TIMER := TIMER);
+  
   tt := Cputime ();
   oP := Orbits (UP);
   if TIMER then "time to compute UP-orbits:", Cputime (tt); end if;
+  
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
 	  vprint Autotopism, 2 : "the initial point partition has", #partP, "part(s)";
+	  
+  // carry out fingerprinting to the specified level
   tt := Cputime ();
-  partP := &cat [ __partition (Q, t, point_label) : Q in partP ];
-  if TIMER then "time to compute labels on points:", Cputime (tt); end if;
-      vprint Autotopism, 2 : "after labeling, point partition has", #partP, "part(s)";
+  if FINGER_LEVEL eq 1 then
+       __basic_fingerprint (~partP, t);
+  elif FINGER_LEVEL eq 2 then
+       __advanced_fingerprint (~partP, t);
+  else
+       assert FINGER_LEVEL eq 0;
+  end if;
+  if TIMER then "time for level", FINGER_LEVEL, "fingerprinting:", Cputime (tt); end if;	  
+  
+  // replace UP with the stabilizer of the new partition and pull back to GL(W)
   oP := [ { Position (P, x[i]) : i in [1..#x] } : x in partP ];
+  
   tt := Cputime ();
   UP := Stabiliser (UP, oP);
   UP := ReduceGenerators (UP);
   if TIMER then "time to compute stabiliser of point partition:", Cputime (tt); end if;
-      vprint Autotopism, 2 : "UP has", Ngens (UP), "generators";
+  
   tt := Cputime ();
   U := UP @@ fP;
-  if TIMER then "time to compute pullback of U:", Cputime (tt); end if;
+  if TIMER then "time to compute pullback of U:", Cputime (tt); end if;	
+	   
+  tt := Cputime ();
+  npartP := &cat [ __partition (Q, t, point_label) : Q in partP ];
+  if TIMER then "time to compute labels on points:", Cputime (tt); end if;
+  
+            // verify claim made in the developer's note that 
+            // this adds nothing new to fingerprinting
+            assert npartP eq partP;
   
   vprint Autotopism, 2 : "now that U stabilizes point partition, |U| =", #U;
-  vprint Autotopism, 2 : "  ";
+  
   
   // induce U on the lines M of PG(W) and then label L using its labeling function
   UM, fM, M := ProjectiveAction (U, 2 : TIMER := TIMER);
+  
   tt := Cputime ();
   oM := Orbits (UM);
   if TIMER then "time to compute UM-orbits:", Cputime (tt); end if;
+  
   partM := [ [ M[i] : i in oM[j] ] : j in [1..#oM] ];
 	  vprint Autotopism, 2 : "the initial line partition has", #partM, "part(s)";
+	  
   tt := Cputime ();
   partM := &cat [ __partition (Q, t, line_label) : Q in partM ];
   if TIMER then "time to compute labels on lines:", Cputime (tt); end if;
-      vprint Autotopism, 2 : "after labeling, LINE partition has", #partM, "part(s)";
+  
+      vprint Autotopism, 2 : "after labeling, line partition has", #partM, "part(s)";
+      
   oM := [ { Position (M, x[i]) : i in [1..#x] } : x in partM ];
+  
   tt := Cputime ();
   UM := Stabiliser (UM, oM);
   UM := ReduceGenerators (UM);
   if TIMER then "time to compute stabiliser of line partition:", Cputime (tt); end if;
+  
   tt := Cputime ();
   U := UM @@ fM;
   if TIMER then "time to compute pullback of U:", Cputime (tt); end if;
@@ -164,9 +301,7 @@ intrinsic LabelledProjectiveSpace (
   
   // induce U on points again, compute orbits, recalculate partP
   UP := U @ fP;
-  tt := Cputime ();
   oP := Orbits (UP);
-  if TIMER then "time to re-compute UP-orbits:", Cputime (tt); end if;
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
 	  vprint Autotopism, 2 : "the final point partition has", #partP, "part(s)";
   
@@ -181,61 +316,4 @@ end intrinsic;
 
 
 
-       /*----- some labeling functions for bimaps -------*/
-
-// a label for points that uses the dimension of the radical of the corresponding form       
-__rank_label := function (z, t)
-  F := SystemOfForms (t);
-return Dimension ( Nullspace (&+ [ (z.1)[i] * F[i] : i in [1..#F] ]));
-end function;
-
-// the quick and dirty way to label lines using the slope invariant
-__slope_label := function (m, t)
-  F := SystemOfForms (t);
-  k := BaseRing (m);
-  f1 := &+ [ (m.1)[i] * F[i] : i in [1..#F] ]; 
-  f2 := &+ [ (m.2)[i] * F[i] : i in [1..#F] ];
-  r := Nrows (f1);
-  c := Ncols (f1);
-  if (r ne c) or not ((f1 eq -Transpose (f1)) and (f2 eq -Transpose (f2))) then
-       // if f1 and f2 are not alternating make an alternating pair from them
-       d := r + c;
-       df1 := MatrixAlgebra (k, d)!0;
-       InsertBlock (~df1, f1, 1, 1 + r);
-       InsertBlock (~df1, -Transpose (f1), 1 + r, 1);   
-       df2 := MatrixAlgebra (k, d)!0;
-       InsertBlock (~df2, f2, 1, 1 + r);
-       InsertBlock (~df2, -Transpose (f2), 1 + r, 1);
-       MS := KMatrixSpace (k, d, d);
-       ms := KMatrixSpaceWithBasis ([MS!df1, MS!df2]);
-  else
-       d := r;
-       MS := KMatrixSpace (k, d, d);
-       ms := KMatrixSpaceWithBasis ([MS!f1, MS!f2]);
-  end if;
-  sloped := exists (T){ S : S in ms | Rank (S) eq Nrows (S) };
-  if not sloped then
-       MA := MatrixAlgebra (k, d);
-       dim := Dimension (Nullspace (ms.1) meet Nullspace (ms.2)) gt 0; 
-       sig := dim;
-       return sig;
-  else
-       assert exists (X){ S : S in ms | sub < ms | S, T > eq ms };
-       slope := X * T^-1;
-       J, C, info := JordanForm (slope);
-       facs := { info[i][1] : i in [1..#info] };
-       sig := [ ];
-       for p in facs do
-             Append (~sig, < Degree (p) , [ x[2] : x in info | x[1] eq p ] >);
-       end for;
-  end if;      
-return Multiset (sig);
-end function;
-
-// the best possible label for lines
-__genus2_label := function (m, t)
-  F := SystemOfForms (t);
-  s := Tensor ([ &+ [ (m.1)[i] * F[i] : i in [1..#F] ], 
-                 &+ [ (m.2)[i] * F[i] : i in [1..#F] ] ], 2, 1); 
-return Genus2Signature (s);
-end function;
+             

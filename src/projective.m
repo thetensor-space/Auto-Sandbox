@@ -463,6 +463,7 @@ intrinsic ActionOnCenter (T::TenSpcElt : LineLabel := "SlopeSignature",
   
   // find the groups acting on points and lines
   Hp, Hl, f, points, lines, tau := ActionOnProjectiveSpace (S);
+        vprint Autotopism, 1 : "|points| =", #points; 
   
   // compute a first partition of points
   point_part := ElementaryPointPartition (points : FullPartition := true);
