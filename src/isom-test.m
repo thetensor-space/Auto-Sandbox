@@ -78,6 +78,14 @@
 ==========================================================================================
 */
 
+import "bimap_labels.m": RANK_LABEL, SLOPE_LABEL, GENUS2_LABEL;
+
+// EOB -- use new or old graph method? Also decide label functions
+NEW := true;
+point_label := RANK_LABEL;
+line_label := GENUS2_LABEL;
+line_label := SLOPE_LABEL;
+
 import "GlobalVars.m" : __SANITY_CHECK, __LIMIT, __SMALL;
 import "Util.m" : Adj2, __vector_to_matrix;
 
@@ -467,6 +475,11 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
 		//	subs, inv, GW2 := CharacteristicSubgroups(G: FullGraph:=FullGraph);
 		GV := Supergroup @ piV;
 		GW := Supergroup @ piW;
+if NEW then 
+                W := Codomain (T);
+                GW := LabelledProjectiveSpace (T, W, point_label, line_label: OVERGROUP := GW);
+		Supergroup := sub<GL(d+e,K) | [x@iotaW : x in Generators(GW)] cat [x@iotaV: x in Generators(GV)]>;
+else 
 		GW2 := ActionOnCenter(T);
 		if LMGOrder(GW) gt LMGOrder(GW2) then
 			vprint Autotopism, 1 : "Using graph";
@@ -483,6 +496,7 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
 				vprint Autotopism, 1 : "Graph did not help.";
 			end if;
 		end if;
+end if;
 	end if;
     __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
 
