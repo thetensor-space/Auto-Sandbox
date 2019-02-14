@@ -6,9 +6,8 @@
 /* 
   Given the densor and the repeat paritition, the function returns BoolElt and
   sometimes SetEnum{RngIntElt}. True means to just write down the autotopism 
-  group from the normalizer by fixing by a scalar, where the returned set will
-  come in handy. False just means to return through Magma's stabilizer 
-  computation.
+  group from the normalizer by scaling some coordinate(s), given by the returned
+  set. False just means to return through Magma's stabilizer computation.
 
   There doesn't seem to be a way to adjust by a scalar on a set of fused coords
   containing 0, that isn't just {0} itself. So at the start, we remove the set
@@ -116,7 +115,7 @@ __der_densor := function(s)
     printf "Something happened when constructing a Levi decomposition.\n";
     printf "\n==== Error Printout ";
     printf "===========================================================\n";
-    err`Traceback, err`Position, err`Object;
+    printf "%o%o", err`Position, err`Object;
     printf &cat["=" : i in [1..79]] cat "\n\n";
     return 0;
   end try;
@@ -133,7 +132,7 @@ __der_densor := function(s)
     "Here is the error:";
     printf "\n==== Error Printout ";
     printf "===========================================================\n";
-    err`Traceback, err`Position, err`Object;
+    printf "%o%o", err`Position, err`Object;
     printf &cat["=" : i in [1..79]] cat "\n\n";
   end try;
 
@@ -149,9 +148,6 @@ __der_densor := function(s)
   SetVerbose("MatrixAlgebras", old_verb);
   printf &cat["=" : i in [1..79]] cat "\n\n";
 
-
-  // Maybe check if N normalizes the radical? Don't really see why this is 
-  // necessary as the forthcoming stabilizer computation would deal with this.
 
 
   // Gives us a way to break up block structure easily via 'Induce'
@@ -174,7 +170,7 @@ __der_densor := function(s)
     for X in Generators(N) do
 
       // Find the scalar that we are off by 
-      Maps_X := [*(X @ projs[i])^-1 : i in [1..v-1]*] cat [*X @ projs[v]*]; // first time this takes FOREVER
+      Maps_X := [*(X @ projs[i])^-1 : i in [1..v-1]*] cat [*X @ projs[v]*]; 
       H_X := Homotopism(Maps_X, AntiChmtp);
       t_X := t @ H_X; 
       k := Eltseq(t)[non_zero_ind]^-1 * Eltseq(t_X)[non_zero_ind];
@@ -191,7 +187,7 @@ __der_densor := function(s)
       end if;
 
       Append(~gens, <Y^-1 : Y in Maps_X[1..v-1]> cat <Maps_X[v]>);
-    
+
     end for;
 
   else
@@ -226,10 +222,10 @@ __der_densor := function(s)
     printf "Computing the stabilizer of the tensor in the densor.\n";
     t_vector := VectorSpace(K, Dimension(densor))!Coordinates(V, V!Eltseq(t));
     St := Stabilizer(N_action, t_vector);
-    phi := hom< N -> N_action | [<gens_N[i], gens_action[i]> : 
+    phi := hom< N -> Generic(N_action) | [<gens_N[i], gens_action[i]> : 
       i in [1..#gens_N]] >;
     Stab := St @@ phi;
-    gens := [<(X @ projs[1])^-1, (X @ projs[2])^-1, X @ projs[3]> : 
+    gens := [<X @ projs[1], X @ projs[2], X @ projs[3]> : 
       X in Generators(Stab)];
 
   end if;
@@ -239,7 +235,9 @@ __der_densor := function(s)
   not_reps := {@a : a in [v-1..0 by -1] | exists{S : S in fused | a in S and
       a ne Maximum(S)}@};
   reps := IndexedSet([v-1..0 by -1]) diff not_reps;
-  gens_trim := [DiagonalJoin(<T[v-a] : a in reps>) : T in gens];  
+  reps := Sort([v-a : a in reps]);
+  gens_trim := [DiagonalJoin(<T[i] : i in reps>) : T in gens];  
+
 
   // Put everything together
   over_grp := GL(Nrows(gens_trim[1]), K);
@@ -250,9 +248,8 @@ __der_densor := function(s)
   // Sanity check
   printf "Sanity check.\n";
   projs := [*Induce(autotop, a) : a in [v-1..0 by -1]*];
-  HmtpCat := HomotopismCategory(v);
-  for X in Generators(autotop) do
-    assert IsHomotopism(t, t, [*X @ pi : pi in projs*], HmtpCat);
+  for X in Generators(autotop) do 
+    assert IsHomotopism(t, t, [*X @ pi : pi in projs*], HomotopismCategory(v));
   end for;
 
 
@@ -264,8 +261,8 @@ end function;
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 intrinsic DDAutotopismGroup( t::TenSpcElt ) -> GrpMat
-{Given a tensor t, apply the derivation-densor method to compute the autotopism
-  group of t.}
+{Given a tensor t, apply the derivation-densor method to compute the autotopism 
+group of t.}
   require ISA(Type(BaseRing(t)), FldFin) : 
       "Base ring of tensor must be a finite field.";
   require Valence(t) eq 3 : 
@@ -274,8 +271,8 @@ intrinsic DDAutotopismGroup( t::TenSpcElt ) -> GrpMat
 end intrinsic;
 
 intrinsic DDAutoclinismGroup( G::GrpPC ) -> GrpAuto
-{Given a class 2, exponent p p-group G, apply the derivation-densor method to
-   compute the automorphism group of G.}
+{Given a class 2 p-group G, apply the derivation-densor method to compute the 
+automorphism group of G.}
   require IsPrimePower(#G) : "Group must be a p-group.";
   require NilpotencyClass(G) eq 2 : "Group must be class 2.";
   require IsOdd(#G) : "Group must have odd order.";
