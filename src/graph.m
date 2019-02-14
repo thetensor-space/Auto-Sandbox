@@ -20,7 +20,9 @@ intrinsic ProjectiveAction (G::GrpMat, n::RngIntElt : TIMER := false)
   else
        X := { x + y : x in P , y in P | x ne y };
   end if;
-  X := [ x : x in X ];
+  // X := [ x : x in X ];
+  // EOB -- use indexed set, not sequence 
+  X := {@ x: x in X @};
   if TIMER then "    time to build all",n,"-spaces:", Cputime (tt); end if;
  
   // compute permutation action of the generators of G

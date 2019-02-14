@@ -58,7 +58,7 @@ end function;
 load "examples/brahana/programs.m";
 load "examples/brahana/present.m";
 load "examples/dual.m";
-p := 11;
+p := 5;
 B := BrahanaList (p);
 __BrahanaTest := function (i : LAB := SLOPE_LABEL)
   H := DualGroup (B[i]);
