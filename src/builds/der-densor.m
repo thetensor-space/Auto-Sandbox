@@ -76,6 +76,12 @@ __der_densor := function(s)
     t := s;
   end if;
 
+  // Stop if anything is trivial already
+  if exists{X : X in Frame(t) | Dimension(X) eq 0} then
+    printf "Tensor is 0-dimensional and should be handled completely by the radical fix.\n";
+    return false;
+  end if;
+
 
   // Construct the derivation algebra first.
   printf "Computing derivation algebra.\n";
@@ -86,8 +92,8 @@ __der_densor := function(s)
   // The derivation algebra is trivial... do something else.   
   if forall{a : a in [0..v-1] | forall{X : X in 
       Generators(Codomain(Induce(D, a))) | IsScalar(X)}} then
-    printf "Trivial derivation algebra. Aborting.\n";
-    return 0;
+    printf "Trivial derivation algebra. Aborting.\nThis is not an error.\n";
+    return false;
   end if;
 
 
@@ -108,8 +114,9 @@ __der_densor := function(s)
   try
     hasLevi, L := HasLeviSubalgebra(D);
     if not hasLevi then
-      printf "Cannot find a Levi decomposition. Aborting.\n";
-      return 0;
+      printf "Cannot find a Levi decomposition. Aborting.\n;";
+      printf "HasLeviSubalgebra returned false.\n";
+      return false;
     end if;
   catch err
     printf "Something happened when constructing a Levi decomposition.\n";
@@ -117,8 +124,14 @@ __der_densor := function(s)
     printf "===========================================================\n";
     printf "%o%o", err`Position, err`Object;
     printf &cat["=" : i in [1..79]] cat "\n\n";
-    return 0;
+    return false;
   end try;
+
+  // Abort if the Levi is trivial.
+  if Dimension(L) eq 0 then
+    printf "The Levi subalgebra is trivial, so there's nothing to do here.\n";
+    return false;
+  end if;
   
   // Got the correct dimensions of blocks.
   assert Degree(L) eq &+(dims_rep); 
@@ -148,7 +161,10 @@ __der_densor := function(s)
   SetVerbose("MatrixAlgebras", old_verb);
   printf &cat["=" : i in [1..79]] cat "\n\n";
 
-
+  if Type(N) eq BoolElt then
+    printf "GLNormalizer returned false.\n";
+    return false;
+  end if; 
 
   // Gives us a way to break up block structure easily via 'Induce'
   DerivedFrom(~N, t, {0..v-1}, coords_rep); 
@@ -174,7 +190,11 @@ __der_densor := function(s)
       H_X := Homotopism(Maps_X, AntiChmtp);
       t_X := t @ H_X; 
       k := Eltseq(t)[non_zero_ind]^-1 * Eltseq(t_X)[non_zero_ind];
-      assert k*t eq t_X; 
+      if k*t ne t_X then
+        printf "Expected tensors to be scalar multiples, but they are not.\n";
+        printf "Please report this bug to your local authorities.\n";
+        return false;
+      end if;
 
       // Scale one map by k^-1 or #S maps by the inverse of the #S-root of k.
       if #S eq 1 then
@@ -204,7 +224,11 @@ __der_densor := function(s)
         Maps_X := [*(X @ projs[i])^-1 : i in [1..v-1]*] cat [*X @ projs[v]*];
         H_X := Homotopism(Maps_X, AntiChmtp);
         b_X := b @ H_X;
-        assert b_X in densor;
+        if b_X notin densor then
+          printf "Expected the tensor to be contained in the densor subspace.\n";
+          printf "Please report this bug to your local authorities.\n";
+          return false;
+        end if;
         /*Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
           F in SystemOfForms(densor!Eltseq(b @ densor`UniMap))];
         Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
@@ -249,7 +273,11 @@ __der_densor := function(s)
   printf "Sanity check.\n";
   projs := [*Induce(autotop, a) : a in [v-1..0 by -1]*];
   for X in Generators(autotop) do 
-    assert IsHomotopism(t, t, [*X @ pi : pi in projs*], HomotopismCategory(v));
+    if not IsHomotopism(t, t, [*X @ pi : pi in projs*], HomotopismCategory(v)) then
+      printf "Expected maps to induce a homotopism, but they did not.\n";
+      printf "Please report this bug to your local authorities.\n";
+      return false;
+    end if;
   end for;
 
 
