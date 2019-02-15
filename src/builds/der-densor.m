@@ -172,6 +172,17 @@ __der_densor := function(s)
 
 
   // Decide how to proceed
+  // Added in later: if N does not normalize the solvable radical, then the 
+  // autotopism group is strictly smaller than the normalizer. 
+  R := SolvableRadical(D);
+  if exists{X : X in Generators(R) | exists{Y : Y in Generators(N) | 
+      not IsCoercible(R, X^Y)}} then
+    // The radical is not normalized 
+    printf "The radical of Der is not normalized. Unsure how to proceed.\n";
+    return false;
+  end if;
+
+  // In this case, the radical is normalized
   fused := RepeatPartition(TensorCategory(t));
   write_it, S := __decision_time(densor, fused);
   AntiChmtp := TensorCategory([-1 : a in [1..v-1]] cat [1], fused);
