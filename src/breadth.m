@@ -39,7 +39,7 @@ intrinsic KBreadthScheme(K::Fld, T::TenSpcElt, r::RngIntElt ) -> Sch
 	return BreadthScheme(Te,r);
 end intrinsic;
 
-intrinsic KBreadthSubspace(K::Fld, T::TenSpcElt, r::RngIntElt) -> ModTup
+intrinsic KBreadthSubspace(K::Fld, T::TenSpcElt, r::RngIntElt) -> ModTupFld
 {Decide if a breadth factor of rank r over K form a proper subspace.}
 
 	// Extend tensor.
@@ -74,15 +74,3 @@ BreadthSubspace := function( forms )
 	end for;
 	return [ Dimension( sub<V|X> ) : X in gens ];
 end function;
-
-
-
-
-
-
-
-
-
-
-
-

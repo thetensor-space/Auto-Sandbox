@@ -1,13 +1,73 @@
 /* 
-    Copyright 2018, Peter Brooksbank, Joshua Maglione, James B. Wilson.
+    Copyright 2018--2019 Peter Brooksbank, Joshua Maglione, James B. Wilson.
     Distributed under GNU GPLv3.
 */
 
+/* 
+  Given the densor and the repeat paritition, the function returns BoolElt and
+  sometimes SetEnum{RngIntElt}. True means to just write down the autotopism 
+  group from the normalizer by scaling some coordinate(s), given by the returned
+  set. False just means to return through Magma's stabilizer computation.
+
+  There doesn't seem to be a way to adjust by a scalar on a set of fused coords
+  containing 0, that isn't just {0} itself. So at the start, we remove the set
+  containing 0. If there are no other sets in repeats, return false.
+
+  We are checking the following things.
+    1. If dimension of densor is greater than 1, then do stabilizer comp.
+    2. If there exists {a} in repeats, then write the fix on that coordinate.
+    3. If there S in repeats with gcd(#S, K^\times) = 1, then we can construct
+       #S-roots, so we can fix the scalars.
+    4. Otherwise, do stabilizer comp.
+*/
+__decision_time := function(densor, repeats)
+  assert exists(S){S : S in repeats | 0 in S};
+  if #S ne 1 then
+    Exclude(~repeats, S);
+  end if;
+  
+  if Dimension(densor) gt 1 or #repeats eq 0 then 
+    return false, _;
+  end if;
+
+  ord_by_size := [PowerSet(PowerSet(IntegerRing())) | {} : k in 
+      [1..Maximum([#S : S in repeats])]];
+  for S in repeats do
+    ord_by_size[#S] join:= {S};
+  end for;
+
+  if #ord_by_size[1] gt 0 then
+    return true, Random(ord_by_size[1]);
+  end if;
+
+  K := BaseRing(densor);
+  unit_grp_ord := #K-1;
+  needed_roots := {i : i in [1..#ord_by_size] | #ord_by_size[i] gt 0};
+  if exists(k){k : k in needed_roots | GCD(k, unit_grp_ord) eq 1} then
+    return true, Random(ord_by_size[k]);    
+  else
+    return false, _;
+  end if;
+end function;
+
+
+// Constructs an nth root of a in K
+__nth_root := function(K, n, a)
+  P<x> := PolynomialRing(K);
+  f := x^n - a;
+  fact := Factorization(f);
+  assert exists(T){t : t in fact | Degree(t[1]) eq 1};
+  root := -Evaluate(T[1], 0);
+  assert K!(root^n) eq K!a;
+  return root;
+end function;
 
 
 __der_densor := function(s) 
+  K := BaseRing(s);
+  v := Valence(s);
 
-  // Step 1: Remove radicals. 
+  // Remove radicals. Once we integrate James' code, we'll remove this.
   t := FullyNondegenerateTensor(s);
   if [Dimension(X) : X in Frame(s)] ne [Dimension(X) : X in Frame(t)] then
     printf "Nontrivial radical. Need a fix from James, but continuing with the";
@@ -16,111 +76,188 @@ __der_densor := function(s)
     t := s;
   end if;
 
-  K := BaseRing(t);
+  // Stop if anything is trivial already
+  if exists{X : X in Frame(t) | Dimension(X) eq 0} then
+    printf "Tensor is 0-dimensional and should be handled completely by the radical fix.\n";
+    return false;
+  end if;
 
 
-  // Step 2: Get the densor subspace.
+  // Construct the derivation algebra first.
   printf "Computing derivation algebra.\n";
   D := DerivationAlgebra(t);
   printf "\tdim(Der) = %o\n", Dimension(D);
-  if Dimension(D) eq 2 then
-    printf "Trivial derivation algebra. Aborting.\n";
-    return 0;
+
+
+  // The derivation algebra is trivial... do something else.   
+  if forall{a : a in [0..v-1] | forall{X : X in 
+      Generators(Codomain(Induce(D, a))) | IsScalar(X)}} then
+    printf "Trivial derivation algebra. Aborting.\nThis is not an error.\n";
+    return false;
   end if;
+
+
+  // Construct the densor subspace
   printf "Computing the densor subspace.\n";
   densor := UniversalDensorSubspace(t); // MAIN BOTTLENECK
   printf "\tdim(densor) = %o\n", Dimension(densor);
 
-  // Get PARTITION for Pete
-  partition := RepeatPartition(TensorCategory(t));
-  v := Valence(t);
-  // James' data structure fix would improve this...
-  dims_rep := []; 
-  for a in Reverse([0..v-1]) do
-    assert exists(S){S : S in partition | a in S};
-    if a eq Maximum(S) then
-      Append(~dims_rep, Dimension(Frame(t)[v-a]));
-    end if;
-  end for;
 
-  // Step 3: Check derivation algebra.
+  // Write down partition for GLNormalizer
+  coords_rep := D`DerivedFrom`RepCoords;
+  Fr := Frame(t);
+  dims_rep := [Dimension(Fr[i]) : i in Sort([v-a : a in coords_rep])];
+
+
+  // Check derivation algebra.
   printf "Computing the Levi decomposition.\n";
   try
     hasLevi, L := HasLeviSubalgebra(D);
     if not hasLevi then
-      printf "Cannot find a Levi decomposition. Aborting.\n";
-      return 0;
+      printf "Cannot find a Levi decomposition. Aborting.\n;";
+      printf "HasLeviSubalgebra returned false.\n";
+      return false;
     end if;
   catch err
     printf "Something happened when constructing a Levi decomposition.\n";
-    printf "Here is the error:\n%o\n", err`Object;
-    return 0;
+    printf "\n==== Error Printout ";
+    printf "===========================================================\n";
+    printf "%o%o", err`Position, err`Object;
+    printf &cat["=" : i in [1..79]] cat "\n\n";
+    return false;
   end try;
-  assert Degree(L) eq &+(dims_rep); // Got the correct dimensions of blocks.
-  // TODO: eventually check that the part outside the Levi is harmless.
+
+  // Abort if the Levi is trivial.
+  if Dimension(L) eq 0 then
+    printf "The Levi subalgebra is trivial, so there's nothing to do here.\n";
+    return false;
+  end if;
+  
+  // Got the correct dimensions of blocks.
+  assert Degree(L) eq &+(dims_rep); 
+
+  // Display Levi info
+  printf "\tdim(Levi) = %o\n", Dimension(L);
+  try
+    printf "Levi semisimple type: %o\n", SemisimpleType(L);
+  catch err
+    "Could not determine the semisimple structure of Levi.";
+    "Here is the error:";
+    printf "\n==== Error Printout ";
+    printf "===========================================================\n";
+    printf "%o%o", err`Position, err`Object;
+    printf &cat["=" : i in [1..79]] cat "\n\n";
+  end try;
 
 
-  // Step 4: Construct the normalizer.
+  // Construct the normalizer.
   printf "Computing the normalizer of the derivation algebra.\n";
-  printf "==== Output from GLNormalizer ";
-  printf "================================\n";
+  printf "\tPARTITION : %o\n", dims_rep;
+  printf "\n==== Output from GLNormalizer ";
+  printf "=================================================\n";
   old_verb := GetVerbose("MatrixAlgebras");
   SetVerbose("MatrixAlgebras", 1);
   N := GLNormalizer(L : PARTITION := dims_rep);
   SetVerbose("MatrixAlgebras", old_verb);
-  printf &cat["=" : i in [1..79]] cat "\n";
-  // Gives us a way to break up block structure easily
-  DerivedFrom(~N, t, {0..2}, {Maximum(S) : S in partition}); 
-  projs := [**];
-  for a in Reverse([0..2]) do
-    pi := Induce(N, a);
-    Append(~projs, pi);
-  end for;
+  printf &cat["=" : i in [1..79]] cat "\n\n";
+
+  if Type(N) eq BoolElt then
+    printf "GLNormalizer returned false.\n";
+    return false;
+  end if; 
+
+  // Gives us a way to break up block structure easily via 'Induce'
+  DerivedFrom(~N, t, {0..v-1}, coords_rep); 
+  projs := [*Induce(N, a) : a in [v-1..0 by -1]*];
 
 
-  if Dimension(densor) eq 1 then
+  // Decide how to proceed
+  // Added in later: if N does not normalize the solvable radical, then the 
+  // autotopism group is strictly smaller than the normalizer. 
+  R := SolvableRadical(D);
+  if exists{X : X in Generators(R) | exists{Y : Y in Generators(N) | 
+      not IsCoercible(R, X^Y)}} then
+    // The radical is not normalized 
+    printf "The radical of Der is not normalized. Unsure how to proceed.\n";
+    return false;
+  end if;
 
-    // Step 5a: If densor is 1-dimensional, we're done!
+  // In this case, the radical is normalized
+  fused := RepeatPartition(TensorCategory(t));
+  write_it, S := __decision_time(densor, fused);
+  AntiChmtp := TensorCategory([-1 : a in [1..v-1]] cat [1], fused);
+
+  if write_it then
+
+    // Write down the autotopism group straight from the generators of N(Der).
     printf "Lifting derivation normalizer to autotopisms.\n";
     gens := [];
-    assert exists(ind){k : k in [1..#Eltseq(t)] | IsInvertible(Eltseq(t)[k])};
+    assert exists(non_zero_ind){k : k in [1..#Eltseq(t)] | Eltseq(t)[k] ne 0};
+
     for X in Generators(N) do
-      Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
-        F in SystemOfForms(t)];
-      Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
-        j in [1..#Forms]];
-      t_X := Tensor(Forms, 2, 1, t`Cat);
-      k := Eltseq(t_X)[ind]^-1*Eltseq(t)[ind]^-1;
-      assert t eq k*t_X; // slow
-      Append(~gens, <X @ projs[1], X @ projs[2], k*Matrix(X @ projs[3])>);
+
+      // Find the scalar that we are off by 
+      Maps_X := [*(X @ projs[i])^-1 : i in [1..v-1]*] cat [*X @ projs[v]*]; 
+      H_X := Homotopism(Maps_X, AntiChmtp);
+      t_X := t @ H_X; 
+      k := Eltseq(t)[non_zero_ind]^-1 * Eltseq(t_X)[non_zero_ind];
+      if k*t ne t_X then
+        printf "Expected tensors to be scalar multiples, but they are not.\n";
+        printf "Please report this bug to your local authorities.\n";
+        return false;
+      end if;
+
+      // Scale one map by k^-1 or #S maps by the inverse of the #S-root of k.
+      if #S eq 1 then
+        a := Random(S);
+        Maps_X[v-a] := k^-1*Matrix(Maps_X[v-a]);
+      else
+        for a in S do
+          Maps_X[v-a] := __nth_root(K, #S, k)^-1*Matrix(Maps_X[v-a]);
+        end for;
+      end if;
+
+      Append(~gens, <Y^-1 : Y in Maps_X[1..v-1]> cat <Maps_X[v]>);
+
     end for;
 
   else
 
-    // Step 5b: Get action of N on the densor. 
+    // Get action of N(Der) on the densor. 
     printf "Constructing the action of the normalizer on the densor.\n";
     gens_N := [x : x in Generators(N)];
     gens_action := [];
     V := densor`Mod;
+
     for X in gens_N do
       mat := [];
-      for b in Basis(V) do
-        Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
+      for b in Basis(densor) do
+        Maps_X := [*(X @ projs[i])^-1 : i in [1..v-1]*] cat [*X @ projs[v]*];
+        H_X := Homotopism(Maps_X, AntiChmtp);
+        b_X := b @ H_X;
+        if b_X notin densor then
+          printf "Expected the tensor to be contained in the densor subspace.\n";
+          printf "Please report this bug to your local authorities.\n";
+          return false;
+        end if;
+        /*Forms := [(X @ projs[1])^-1*F*Transpose(X @ projs[2])^-1 : 
           F in SystemOfForms(densor!Eltseq(b @ densor`UniMap))];
         Forms := [&+[(X @ projs[3])[i][j]*Forms[i] : i in [1..#Forms]] : 
           j in [1..#Forms]];
-        b_X := Tensor(Forms, 2, 1, t`Cat);
+        b_X := Tensor(Forms, 2, 1, t`Cat);*/
         Append(~mat, Coordinates(V, V!Eltseq(b_X)));
       end for;
       Append(~gens_action, Matrix(mat));
     end for;
+
     N_action := sub< GL(Dimension(densor), K) | gens_action >;
 
-    // Step 5c: Compute stabilizer of densor space.
+
+    // Compute stabilizer of the tensor
     printf "Computing the stabilizer of the tensor in the densor.\n";
     t_vector := VectorSpace(K, Dimension(densor))!Coordinates(V, V!Eltseq(t));
     St := Stabilizer(N_action, t_vector);
-    phi := hom< N -> N_action | [<gens_N[i], gens_action[i]> : 
+    phi := hom< N -> Generic(N_action) | [<gens_N[i], gens_action[i]> : 
       i in [1..#gens_N]] >;
     Stab := St @@ phi;
     gens := [<X @ projs[1], X @ projs[2], X @ projs[3]> : 
@@ -129,77 +266,33 @@ __der_densor := function(s)
   end if;
 
 
-  // Step 6: Include isometries. (These might already be included???)
-/*  printf "Constructing the isometry group.\n";
-  try
-    I := IsometryGroup(SystemOfForms(t) : DisplayStructure := false); 
-    isom := [<X, X, GL(t`Codomain)!1> : X in Generators(I)];
-  catch err
-    I := PrincipalIsotopismGroup(t);
-    projs := [];
-    for i in [1..3] do
-      pi := Induce(I, 3-i);
-      Append(~projs, pi);
-    end for;
-    isom := [<X @ projs[i] : i in [1..3]> : X in Generators(I)];
-  end try;*/
-  isom := [];
+  // Trim the gens down by fused
+  not_reps := {@a : a in [v-1..0 by -1] | exists{S : S in fused | a in S and
+      a ne Maximum(S)}@};
+  reps := IndexedSet([v-1..0 by -1]) diff not_reps;
+  reps := Sort([v-a : a in reps]);
+  gens_trim := [DiagonalJoin(<T[i] : i in reps>) : T in gens];  
 
 
-  // Step 7: Deal with any radicals. James will fix this with HOF
-/*  if &or[Dimension(r) gt 0 : r in R] then
-    Id := [*IdentityMatrix(K, Dimension(C[i])) : i in [1..3]*];
-    rads :=[];
-    if Dimension(R[1]) gt 0 then
-      rads cat:= [<DiagonalJoin(Id[1], x)*T[1]^-1, GL(s`Domain[2]), 
-        GL(s`Codomain)!1> : x in Generators(GL(R[1]))];
-    end if;
-    if Dimension(R[2]) gt 0 then
-      rads cat:= [<GL(s`Domain[1]), DiagonalJoin(Id[2], x)*T[2]^-1,
-        GL(s`Codomain)!1> : x in Generators(GL(R[2]))];
-    end if;
-    if Dimension(R[3]) gt 0 then
-      rads cat:= [<GL(s`Domain[1])!1, GL(s`Domain[2])!1, 
-        T[3]^-1*DiagonalJoin(GL(C[3])!1, x)> : x in Generators(GL(R[3]))]; 
-    end if;
-    gens := [<DiagonalJoin(x[1], GL(R[1])!1)*T[1]^-1, 
-      DiagonalJoin(x[2], GL(R[2])!1)*T[2]^-1, 
-      T[3]^-1*DiagonalJoin(x[3], GL(R[3])!1)> : x in gens];
-    isom := [<DiagonalJoin(x[1], GL(R[1])!1)*T[1]^-1, 
-      DiagonalJoin(x[2], GL(R[2])!1)*T[2]^-1, 
-      T[3]^-1*DiagonalJoin(x[3], GL(R[3])!1)> : x in isom];
-    unip := []; // ADD THESE
-    printf "WARNING: Unipotent not added yet.";
-    pi_gens := gens cat isom cat rads;
-  else
-    pi_gens := gens cat isom;
-  end if;*/
-  pi_gens := gens cat isom;
-
-
-  // Step 8: Put everything together
-  over_grp := GL(&+[Nrows(pi_gens[1][i]) : i in [1..3]], K);
-  pseudo_isom := sub< over_grp | [DiagonalJoin(x) : x in pi_gens] >;
-  DerivedFrom(~pseudo_isom, s, {0..2}, {0..2} : Fused := false);
+  // Put everything together
+  over_grp := GL(Nrows(gens_trim[1]), K);
+  autotop := sub< over_grp | gens_trim >;
+  DerivedFrom(~autotop, t, D`DerivedFrom`Coords, D`DerivedFrom`RepCoords);
 
 
   // Sanity check
   printf "Sanity check.\n";
-  Forms := SystemOfForms(t);
-  for i in [1..10] do
-    X := Random(pseudo_isom);
-    pi2 := Induce(pseudo_isom, 2);
-    pi1 := Induce(pseudo_isom, 1);
-    pi0 := Induce(pseudo_isom, 0);
-    assert [(X @ pi2)*F*Transpose(X @ pi1) : F in Forms] eq 
-        [&+[(X @ pi0)[i][j]*Forms[i] : i in [1..#Forms]] : j in [1..#Forms]];
-    //if not IsHomotopism(t, t, [*X @ pi2, X @ pi1, X @ pi0*]) then
-    //  printf "\tWARNING: did not pass sanity test! Something is wrong.\n";
-    //  break;
-    //end if;
+  projs := [*Induce(autotop, a) : a in [v-1..0 by -1]*];
+  for X in Generators(autotop) do 
+    if not IsHomotopism(t, t, [*X @ pi : pi in projs*], HomotopismCategory(v)) then
+      printf "Expected maps to induce a homotopism, but they did not.\n";
+      printf "Please report this bug to your local authorities.\n";
+      return false;
+    end if;
   end for;
 
-  return pseudo_isom;
+
+  return autotop;
 end function;
 
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -207,18 +300,21 @@ end function;
 // +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 intrinsic DDAutotopismGroup( t::TenSpcElt ) -> GrpMat
-{Given a tensor t, apply the derivation-densor method to compute the autotopism
-  group of t.}
+{Given a tensor t, apply the derivation-densor method to compute the autotopism 
+group of t.}
   require ISA(Type(BaseRing(t)), FldFin) : 
-    "Base ring of tensor must be a finite field.";
+      "Base ring of tensor must be a finite field.";
+  require Valence(t) eq 3 : 
+      "Densor computations require 3-tensors at the moment.";
   return __der_densor(t);
 end intrinsic;
 
 intrinsic DDAutoclinismGroup( G::GrpPC ) -> GrpAuto
-{Given a class 2, exponent p p-group G, apply the derivation-densor method to
-   compute the automorphism group of G.}
+{Given a class 2 p-group G, apply the derivation-densor method to compute the 
+automorphism group of G.}
   require IsPrimePower(#G) : "Group must be a p-group.";
   require NilpotencyClass(G) eq 2 : "Group must be class 2.";
+  require IsOdd(#G) : "Group must have odd order.";
   t, maps := pCentralTensor(G);
   Aut := __der_densor(t);
   return Aut;
