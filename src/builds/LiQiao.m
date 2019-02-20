@@ -36,7 +36,7 @@ EXHAUST_LIMIT := 10^8;
 // Eventually the output of the following function should be a homotopism;
 // for now it is a pair of a trip of maps
 
-intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt) -> BoolElt, Tup
+intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt : MINC := 3 ) -> BoolElt, Tup
   
   { Use exhaustion over partial maps to find an autotopism (or pseudo-isometry) from s1 to s2. }
   
@@ -91,11 +91,15 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt) -> BoolElt, Tup
   end if;
 
   // find the values of c we can hope to deal with
-  CONSTANTS := [ c : c in [2..m] | q ^ (c * m) le EXHAUST_LIMIT ];
+  CONSTANTS := [ c : c in [MINC..m] | q ^ (c * m) le EXHAUST_LIMIT ];
   
+  
+
   for c in CONSTANTS do     // probably c = 3 is best, but we might get away with c = 2
   
-       vprint Autotopism, 1 : "trying c =", c;
+       vprint Autotopism, 1 : "(q = ", q, ", m = ", m, ", c = ", c, 
+          " q^m = ", q^m, " q^(cm) = ", q^(c*m), ")";
+       
        
        I := __Precondition (S1, c, PI, 10);
        t1 := Tensor ([ S1[i] : i in I ], 2, 1, CAT);
@@ -105,7 +109,12 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt) -> BoolElt, Tup
             ISOM := PrincipalIsotopismGroup (t1);
        end if;
        vprint Autotopism, 1 : "Isom(t1) has order", #ISOM;
-       
+       vprint Autotopism, 1 : "\tNumber of rounds ", q^(c*m), " (Bits ", 
+          Ceiling(Log(2,q^(c*m))), ")";
+       vprint Autotopism, 1 : "\tMin work if nonisomorphic: ", 
+          q^(c*m)*#ISOM, 
+          "(Bits ", Ceiling(Log(2,q^(c*m)*#ISOM)), ")";
+
        if #ISOM le ADJOINT_LIMIT then
        
             ISOM := [ x : x in ISOM ];     // seems sensible to list this once
@@ -141,7 +150,8 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt) -> BoolElt, Tup
                       end if;
                  end if;
             end for;
-  
+          else
+               vprint Autotopism, 1 : "GO AWAY!";
        end if;
   
   end for;
@@ -151,3 +161,13 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt) -> BoolElt, Tup
 return false, _; 
 
 end intrinsic;
+
+
+/*
+
+d:=8;e:=4;p:=3; TS := KTensorSpace(GF(p),[d,d,e]);
+t := Random(TS);
+s := Random(TS);
+time LiQiao(t,s);
+
+*/
