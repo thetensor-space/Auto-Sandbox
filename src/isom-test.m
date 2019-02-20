@@ -937,6 +937,16 @@ end intrinsic;
 
 
       /* ------------- group constructors ----------------- */
+      
+intrinsic IsometryGroup (T::TenSpcElt) -> GrpMat
+
+  {Compute the group of isometries of the given tensor.}
+  
+  // need some requirements here
+  
+return IsometryGroup (SystemOfForms (T));
+  
+end intrinsic;
 
 
 intrinsic PrincipalIsotopismGroup (T::TenSpcElt) -> GrpMat

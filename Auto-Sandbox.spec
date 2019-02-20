@@ -17,6 +17,7 @@
     {
       BUILD.m
       der-densor.m
+      LiQiao.m
     }
   	pgroups
 		{
