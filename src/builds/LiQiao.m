@@ -5,10 +5,83 @@
 
 import "../Util.m" : Adj2;
 
+EXHAUST_LIMIT := 10^9;
 ADJOINT_LIMIT := 10^5;
-EXHAUST_LIMIT := 10^8;
+INTERNAL_LIMIT := 20;
 
-     // chooses a c-subset of S whose adjoints are small
+     // this is O(q^m)
+     __PartitionOnRank := function (S)
+       m := #S;
+       k := BaseRing (Parent (S[1]));
+       V := VectorSpace (k, m);
+       LC := [ v : v in V | v ne 0 ];
+       ranks := { Rank (&+ [ v[j] * S[j] : j in [1..m] ]) : v in LC };
+       ranks := [ r : r in ranks ];
+       I := [1..#ranks];
+       part := [ [ v : v in LC | Rank (&+ [ v[j] * S[j] : j in [1..m] ]) eq r ] : 
+                  r in ranks ];
+       Sort (~I, func<x,y|#part[x]-#part[y]>);
+       ranks := [ ranks[i] : i in I ];
+       part := [ part[i] : i in I ];
+     return ranks, part;
+     end function;
+
+     /*
+       This function will require some tweaking.
+       
+       Here's the idea. We want ideally to choose a constant c 
+       and a basis for a c-dimensional subspace of <S> in such
+       a way that the number of possible images of this basis
+       is minimized. But also, insofar as we can, we also wish
+       to minimize the order of the isometry group of the bimap
+       defined by these basis elements.
+       
+       For the time being, let's assume that we're only going
+       to use c = 2 or c = 3. We'll do a bit of preconditioning
+       with both to try to determine the best option.
+     */
+     
+     __Prec := function (S, c, ranks, part, CAT, flag, LIMIT)      
+           
+       k := BaseRing (Parent (S[1]));
+       m := #S;
+       V := VectorSpace (k, m);  
+       
+            // find enough of part to span a c-space
+       dims := [ Dimension (sub<V|part[i]>) : i in [1..#part] ];
+       coord_sets := [ ];
+       for i in [1..#dims] do
+            coord_sets cat:= [ i : j in [1..dims[i]] ];
+       end for;
+       coord_sets := [ coord_sets[i] : i in [1..c] ];
+       work := &* [ #part[i] : i in coord_sets ];
+          
+            // search for forms with small isometry group
+       tensors := [ ];
+       isoms := [ ];
+       for i in [1..LIMIT] do
+            repeat
+                 vecs := [ Random (part[i]) : i in coord_sets ];
+            until Dimension (sub<V|vecs>) eq c;
+            T := [ &+ [ vecs[a][j] * S[j] : j in [1..m] ] : a in [1..#vecs] ];
+            t := Tensor (T, 2, 1, CAT);
+            Append (~tensors, t);
+            if flag then
+                 Append (~isoms, IsometryGroup (t));
+            else
+                 Append (~isoms, PrincipalIsotopismGroup (t));
+            end if;
+       end for;   
+         
+       min, i := Minimum ([ #I : I in isoms ]);
+       work *:= #isoms[i];
+       
+     return tensors[i], isoms[i], coord_sets, work;
+     end function;
+    
+
+     // this is the old preconditioning function that we'll keep around for now
+/*
      __Precondition := function (S, c, flag, LIMIT)
        inds := [ ];
        dims := [ ];
@@ -31,6 +104,8 @@ EXHAUST_LIMIT := 10^8;
        I := inds[j];
      return I;
      end function;
+*/
+     
 
 
 // Eventually the output of the following function should be a homotopism;
@@ -47,8 +122,10 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt : MINC := 3 ) -> BoolElt, Tup
   
   if R eq {{0},{1},{2}} then
        PI := false;   // pseudo-isometry flag
+       vprint Autotopism, 2 : "equivalence is AUTOTOPISM";
   elif R eq {{0},{1,2}} then
        PI := true;
+       vprint Autotopism, 2 : "equivalence is PSEUDO-ISOMETRY";
   else
        vprint Autotopism, 2 : "tensors do not have valence 2 (they are not bimaps)";
        return false, _;
@@ -60,12 +137,13 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt : MINC := 3 ) -> BoolElt, Tup
   S2 := SystemOfForms (s2);
   m := #S1;
   if #S2 ne m then
-       vprint Autotopism, 2 : "the bimaps have different codomains";
+       vprint Autotopism, 2 : "NOT EQUIVALENT: different codomains";
        return false, _;
   end if;
   
   if m lt 3 then
-       vprint Autotopism, 2 : "bimaps have genus at most 2 ... please go away";
+       vprint Autotopism, 2 : "INAPPROPRIATE INPUT: genus at most 2";
+       return false, _;
   end if;
   
   // compare global adjoint algebras
@@ -80,48 +158,72 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt : MINC := 3 ) -> BoolElt, Tup
   end if;
        // could insert something more subtle here, but dimension if fine for now
   if Dimension (A1) ne Dimension (A2) then
-       vprint Autotopism, 2 : "bimaps have adjoint algebras of differing dimensions";
+       vprint Autotopism, 2 : "NOT EQUIVALENT: adjoint algebras have different dimensions";
        return false, _;
   end if;
   
   // make sure these adjoint algebras are not too large
-  if #A1 gt ADJOINT_LIMIT then
-       vprint Autotopism, 2 : "the (global) adjoint algebras are already too large";
+  if #A1 gt ADJOINT_LIMIT then     // we should use a different method
+       vprint Autotopism, 2 : "FAIL: (global) adjoint algebras are already too large", #A1;
+       return false, _;
+  end if;
+  
+  // compute rank information for the two tensors
+  ranks1, part1 := __PartitionOnRank (S1);
+  ranks2, part2 := __PartitionOnRank (S2);
+  if ((ranks1 ne ranks2) or ([ #p : p in part1 ] ne [ #p : p in part2 ])) then
+       vprint Autotopism, 2 : "NOT EQUIVALENT: different rank data";
+       return false, _;
+  end if;
+  
+  vprint Autotopism, 2 : "the set of possible ranks is", ranks1;
+  
+  // before we precondition based on points, ensure this is even feasible ...
+  if (#k)^m gt EXHAUST_LIMIT then
+       vprint Autotopism, 2 : "FAIL: there are already too many points to precondition";
        return false, _;
   end if;
 
-  // find the values of c we can hope to deal with
-  CONSTANTS := [ c : c in [MINC..m] | q ^ (c * m) le EXHAUST_LIMIT ];
+  // compare the worst-case work with c = 2 and c = 3 and take the smaller
+  t2, ISOM2, coords2, work2 := __Prec (S1, 2, ranks1, part1, CAT, PI, INTERNAL_LIMIT);
+  vprint Autotopism, 1 : "using c = 2, the amount of work needed is", 
+     Floor (Log(2,work2)), "bits";
+  vprint Autotopism, 1 : "   brute force for c = 2 requires", 
+     Floor (Log(2,(#k)^(2*m) * #ISOM2)), "bits";
   
+  t3, ISOM3, coords3, work3 := __Prec (S1, 3, ranks1, part1, CAT, PI, INTERNAL_LIMIT);
+  vprint Autotopism, 1 : "using c = 3, the amount of work needed is", 
+     Floor (Log(2,work3)), "bits";
+  vprint Autotopism, 1 : "   brute force for c = 3 requires", 
+     Floor (Log(2,(#k)^(3*m) * #ISOM3)), "bits";
   
-
-  for c in CONSTANTS do     // probably c = 3 is best, but we might get away with c = 2
+  if work2 le work3 then
+       c := 2;
+       t1 := t2;
+       ISOM := ISOM2;
+       work := work2;
+       coord_sets := coords2;
+  else
+       c := 3;
+       t1 := t3;
+       ISOM := ISOM3;
+       work := work3;
+       coord_sets := coords3;
+  end if;
   
-       vprint Autotopism, 1 : "(q = ", q, ", m = ", m, ", c = ", c, 
-          " q^m = ", q^m, " q^(cm) = ", q^(c*m), ")";
+  assert #coord_sets eq c;
+  vprint Autotopism, 2 : "using c =", c;
+           
+       if work le EXHAUST_LIMIT then
        
-       
-       I := __Precondition (S1, c, PI, 10);
-       t1 := Tensor ([ S1[i] : i in I ], 2, 1, CAT);
-       if PI then
-            ISOM := IsometryGroup (t1);
-       else
-            ISOM := PrincipalIsotopismGroup (t1);
-       end if;
-       vprint Autotopism, 1 : "Isom(t1) has order", #ISOM;
-       vprint Autotopism, 1 : "\tNumber of rounds ", q^(c*m), " (Bits ", 
-          Ceiling(Log(2,q^(c*m))), ")";
-       vprint Autotopism, 1 : "\tMin work if nonisomorphic: ", 
-          q^(c*m)*#ISOM, 
-          "(Bits ", Ceiling(Log(2,q^(c*m)*#ISOM)), ")";
-
-       if #ISOM le ADJOINT_LIMIT then
-       
-            ISOM := [ x : x in ISOM ];     // seems sensible to list this once
-       
+            ISOM := [ x : x in ISOM ];  
+            
             // build all possible images
-            MS := KMatrixSpace (k, c, m);     // < EXHAUST_LIMIT
-            for X in MS do
+            L := < part2[coord_sets[i]] : i in [1..c] >; 
+            ctups := CartesianProduct (L); 
+                  
+            for X in ctups do
+            
                  T2 := [ &+ [ X[i][j] * S2[j] : j in [1..m] ] : i in [1..c] ];
                  t2 := Tensor (T2, 2, 1, CAT);
                  if PI then
@@ -149,14 +251,18 @@ intrinsic LiQiao (s1::TenSpcElt, s2::TenSpcElt : MINC := 3 ) -> BoolElt, Tup
                            end for;
                       end if;
                  end if;
+                 
             end for;
-          else
-               vprint Autotopism, 1 : "GO AWAY!";
-       end if;
+            
+       else
   
-  end for;
+            vprint Autotopism, 2 : "FAIL: it's just too hard a problem";
+            
+            return false, _;
+  
+       end if;
    
-  vprint Autotopism, 1 : "looped through all possible images and failed to lift"; 
+  vprint Autotopism, 2 : "NOT EQUIVALENT: exhausted all possible lifts"; 
    
 return false, _; 
 
