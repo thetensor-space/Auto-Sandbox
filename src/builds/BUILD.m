@@ -190,7 +190,7 @@ intrinsic Lift1 (t1::TenSpcElt, t2::TenSpcElt, f::Hmtp, a::RngIntElt)
   another_check, H := IsHomotopism(t1, t2, Maps(H), TensorCategory(H));
   assert another_check;
 
-  return H;
+  return true, H;
 
 /*
   Now old: delete once we're content. --JM    03.02.2019
