@@ -34,11 +34,12 @@
    		ops.m
    		parallel.m
    		parameters.m
-   		stab-of-spaces.m
    		standard.m
    		generate.m
    		unipotent.m
-   		filter.m
+        filter.m
+        verbal-char.m
+        stab-of-spaces.m
 		}
   }
 }
