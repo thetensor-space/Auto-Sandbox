@@ -148,6 +148,10 @@ end function;
         to t2 by changing just the a-th coordinate
     (2) such an isotopism g 
 */
+/*
+  Lift 1 is now part of TensorSpace. I commented this out because it was 
+  overwriting the version in TensorSpace. -- JM  28.02.2019.
+
 intrinsic Lift1 (t1::TenSpcElt, t2::TenSpcElt, f::Hmtp, a::RngIntElt) 
     -> BoolElt, Hmtp
     
@@ -191,7 +195,7 @@ intrinsic Lift1 (t1::TenSpcElt, t2::TenSpcElt, f::Hmtp, a::RngIntElt)
   assert another_check;
 
   return true, H;
-
+*/
 /*
   Now old: delete once we're content. --JM    03.02.2019
 
@@ -238,7 +242,7 @@ intrinsic Lift1 (t1::TenSpcElt, t2::TenSpcElt, f::Hmtp, a::RngIntElt)
 
 return true, g;
    */
-end intrinsic;
+//end intrinsic;
 
 
 /*
