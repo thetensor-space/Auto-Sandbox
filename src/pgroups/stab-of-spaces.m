@@ -1,4 +1,6 @@
-freeze;
+// mildly revised version of existing code distributed with Magma
+// EOB January 2019 
+
 declare verbose Stabiliser, 1;
 
 // Alg := "Matrix"; // find primitive element by random search of matrices
@@ -394,6 +396,7 @@ UnitsGenerators := function (A, solution, dims, isom, CF:
    end if;
 
    size := char^#pPart;
+   factors := Factorisation (size);
 
    // determine non-p-part generators as group elements
    blockSol, temp := GLBlockGenerators (dims, isom, CF, F, d, info[1]:
@@ -404,6 +407,7 @@ UnitsGenerators := function (A, solution, dims, isom, CF:
    elif blockPart cmpeq [] then
       temp := 1;
    end if;
+   factors *:= Factorisation (temp);
    size *:= temp;
 
    // remove trivial generators
@@ -415,7 +419,7 @@ UnitsGenerators := function (A, solution, dims, isom, CF:
       blockPart := [IdentityMatrix (F, d)];
    end if;
 
-   return pPart, blockPart, size;
+   return pPart, blockPart, size, factors;
 end function;
 
 /* system of linear equations specified by spaces U, namely U * X = U */
@@ -508,15 +512,7 @@ HasNoUnits := function (CF)
    return false;
 end function;
 
-MyUnitGroup := function (A : Jacobson := false)
-   M := RModule (A);
-
-   CS, CF, CB := CompositionSeries (M);
-
-   /* criterion for absence of units */
-   nounits := HasNoUnits (CF);
-   if nounits then return false, _, _, _; end if;
-
+MyUnitGroup := function (A, CF, CB : Jacobson := false)
    dims := [Dimension (CF[i]): i in [1..#CF]];
    isom := DetermineIsomorphisms (CF);
    vprint Stabiliser: "Distinct isomorphism types are ", isom;
@@ -531,10 +527,10 @@ MyUnitGroup := function (A : Jacobson := false)
       vprint Stabiliser: "Not absolutely irreducible";
    end if;
 
-   pPart, blockPart, order := UnitsGenerators (A, solution, dims, isom, CF:
+   pPart, blockPart, order, f_order := UnitsGenerators (A, solution, dims, isom, CF:
                                                Jacobson := Jacobson);
    if Type (pPart) eq BoolElt then
-      error "Problem: algebra has no units";
+      // error "Problem: algebra has no units";
       return false, _, _, _;
    end if;
 
@@ -549,23 +545,31 @@ MyUnitGroup := function (A : Jacobson := false)
    end if;
    B := [GL(d, F) ! (J * b * CB) : b in blockPart];
 
-   return B, P, order;
+   return B, P, order, f_order;
 end function;
 
-intrinsic UnitGroup (A:: AlgMat) -> BoolElt, GrpMat, RngIntElt
+intrinsic UnitGroup (A:: AlgMat) -> BoolElt, GrpMat
 {If matrix algebra defined over a finite field has invertible matrices,
-then return true, the group of such matrices and its order, else return false}
+then return true and group of such matrices, else false}
 
    d := Degree (A);
    F := BaseRing (A);
    require IsFinite (F): "Base field for algebra must be finite";
+   if Dimension (A) eq 0 then return false, _; end if;
 
-   B, P, order := MyUnitGroup (A);
-   if Type (B) eq BoolElt then return false, _, _; end if;
+   M := RModule (A);
+   CS, CF, CB := CompositionSeries (M);
+
+   /* criterion for absence of units */
+   nounits := HasNoUnits (CF);
+   if nounits then return false, _; end if;
+
+   B, P, order, f_order := MyUnitGroup (A, CF, CB);
+   if Type (B) eq BoolElt then return false, _; end if;
    G := sub<GL(d, F) | B, P>;
-//   G`Order := order;
-   return true, G, order;
-
+   G`FactoredOrder := f_order;
+   G`Order := order;
+   return true, G;
 end intrinsic;
 
 /* construct the stabiliser in GL(d, p) for a sequence of subspaces */
@@ -661,21 +665,15 @@ intrinsic JacobsonRadicalOverFiniteField (A:: AlgMat) -> AlgMat
    d := Degree (A);
    F := BaseRing (A);
    require IsFinite (F): "Base field for algebra must be finite";
-   PA := MatrixAlgebra (F, d);
-
-   function return_ideal(L)
-      // return sub<PA | L>;
-      return ideal<A | L>;
-   end function;
 
    /* if number of generators is 1, then nilpotent part
-      of generator generators Jacobson radical */
+      of generator generates Jacobson radical */
    if Ngens (A) eq 1 then
       s, n := JordanDecomposition (A.1);
-      return return_ideal(n);
+      return ideal <A | n>;
    end if;
 
-   if Dimension (A) in [0, d^2] then return return_ideal([]); end if;
+   if Dimension (A) in [0, d^2] then return ideal<A | []>; end if;
    gens := Basis (A);
 
    M := RModule (A);
@@ -699,6 +697,5 @@ intrinsic JacobsonRadicalOverFiniteField (A:: AlgMat) -> AlgMat
    P := [Matrix (d, d, p): p in Basis (P)];
    P := [cb * b * CB : b in P];
 
-   return return_ideal(P);
-
+   return ideal<A | P>;
 end intrinsic;

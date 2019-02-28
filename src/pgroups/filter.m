@@ -1,10 +1,11 @@
 intrinsic ProduceFilter (G:: GrpPC: S := []) -> [], [], []
-{produce filter}
-   F:= pCentralFilter(G);
-   Q:=Refine (F);
-   I:=Image (Q);
+{produce filter; return filter, char subgroups, associated spaces;
+ S can be used to pass in known characteristic subgroups}
+   F := pCentralFilter (G);
+   Q := Refine (F);
+   I := Image (Q);
    if #S eq 0 then 
-      S:=MyCharSpaces (G);
+      S, U := VerbalChar (G);
    end if;
    for i in [1..#S] do 
       H := S[i];
@@ -18,7 +19,7 @@ intrinsic ProduceFilter (G:: GrpPC: S := []) -> [], [], []
    T := I cat S;
    T := Set (T);
    T := [x : x in T];
-   return T, I, S;
+   return I, T, U;
 end intrinsic;
 
 /* 
@@ -26,6 +27,9 @@ G :=
 PCGroup(\[ 7, -11, 11, 11, 11, -11, 11, 11, 1127357, 205129, 11366748, 307701, 
 2154784, 410273, 40988 ]);
 
-ProduceFilter (G);
+I, C, U := ProduceFilter (G);
+
+U := [x[1] : x in U | x[2] eq 1];
+S := StabiliserOfSpaces (U);
 
 */
