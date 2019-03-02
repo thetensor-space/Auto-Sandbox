@@ -1,6 +1,7 @@
 {
   src
   {
+     autos.m
   	GlobalVars.m
      norm-Lie.m
   	isom-test.m
