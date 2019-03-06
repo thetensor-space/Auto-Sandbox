@@ -268,15 +268,14 @@ __report := function(U,L, piV,piW)
   vprint Autotopism, 1 : "INDEX:\t\t\t\t",	__THE_INDEX, "(",bits, "bits)";
   
   UV := U @ piV;
-  LV := L @ piV;
-  __THE_V_INDEX := LMGIndex(UV,LV);
+  vprint Autotopism, 1 : "L=", L, "piV=", piV;
+  __THE_V_INDEX := ISA(Type(L), BoolElt) select LMGOrder(UV) else LMGOrder(UV) div LMGOrder(L @ piV );
   bits := Ceiling(Log(2,__THE_V_INDEX));
   d := Degree(UV);
   vprint Autotopism, 1 : "\tINDEX ON V:\t\t\t", bits,"/", Ceiling(d^2*Log(2,p)), "bits";
 
   UW := U @ piW;
-  LW := L @ piW;
-  __THE_W_INDEX := LMGIndex(UW,LW);
+  __THE_W_INDEX := ISA(Type(L), BoolElt) select LMGOrder(UW) else LMGOrder(UW) div LMGOrder(L @ piW );
   bits := Ceiling(Log(2,__THE_W_INDEX));
   e := Degree(UW);
     vprint Autotopism, 1 : "\tINDEX ON W:\t\t\t", bits,"/", Ceiling(e^2*Log(2,p)), "bits.";
@@ -461,7 +460,10 @@ intrinsic PseudoIsometryGroup(T::TenSpcElt :  // Symmetric or alternating tensor
   try
 	  vprint Autotopism, 1 : "Adding exponential of derivations by Brooksbank-Maglione-Wilson.";
 //  	Subgroup := ExponentiateDerivations(T);
-    Subgroup := IsometryGroup(T); // No more ExponentiateDerivations. I Put this in as filler. -Josh
+    I := IsometryGroup(T); // No more ExponentiateDerivations. I Put this in as filler. -Josh
+    // ops, sorry Josh, this needs to be in the full pseudo-isometry group
+    gens := [ InsertBlock(Supergroup!1, x, 1,1) : x in Generators(I)];
+    Subgroup := sub<Supergroup | gens >;
   catch e
   	vprint Autotopism, 1 : "Lie algebra methods not fully supported for this tensor";//, e;
   end try;
