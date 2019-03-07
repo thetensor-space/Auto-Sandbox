@@ -322,7 +322,7 @@ __SearchCosetsW := function(T, Supergroup, Subgroup, piV, piW, __THE_W_INDEX, MA
 	print "Search exceeded limit of ", MAX, 
 		"\n\t returning Super- and Sub-group containing actual.";
 	 __THE_INDEX,__THE_V_INDEX,__THE_W_INDEX := __report(Supergroup, Subgroup, piV,piW);
-	return Supergroup, Subgroup;
+	return Supergroup, Subgroup, t;
   end if;
 
   
