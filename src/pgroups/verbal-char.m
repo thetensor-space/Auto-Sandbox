@@ -340,7 +340,7 @@ CharSpaces := function (G : Known := [], Limit := MAXSPACES)
    return spaces;
 end function;
 
-intrinsic VerbalChar (G::GrpPC: Known := []) -> [], []
+intrinsic VerbalChar (G::GrpPC: Known := [], Breadth := 5) -> [], []
 {G p-group; return characteristic subgroups and spaces}
 
    Z := Integers ();
@@ -349,6 +349,13 @@ intrinsic VerbalChar (G::GrpPC: Known := []) -> [], []
    G, gamma := pQuotient (I, p, pClass (G));
    C := [gamma (x): x in Known];
    C := CharSpaces (G : Known := C);
+
+   vprint AutomorphismGroup: "Test breadth";
+   t := pCentralTensor (G);
+   for i in [1..Breadth] do 
+      Include (~C, <KBreadthSubspace (GF(p), t, i), 1>); 
+   end for;
+
    r := [0] cat pRanks (G);
    U := [];
    Spaces := [* *];
@@ -371,5 +378,6 @@ intrinsic VerbalChar (G::GrpPC: Known := []) -> [], []
    end for;
    S := [sub< I | [u.j @@ gamma: j in [1..NPCgens (u)]]>:  u in U];
    Spaces := [x : x in Spaces];
+
    return S, Spaces;
 end intrinsic;
