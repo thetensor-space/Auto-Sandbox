@@ -1,7 +1,7 @@
 
 import "GlobalVars.m" : __SANITY_CHECK;
 
-
+/*
 intrinsic ProduceFilter (G::GrpPC: S := [], CharSpacesFunc:=false) -> [], [], []
 {produce filter}
    F:= pCentralFilter(G);
@@ -13,7 +13,7 @@ intrinsic ProduceFilter (G::GrpPC: S := [], CharSpacesFunc:=false) -> [], [], []
    for i in [1..#S] do 
       H := S[i];
       if not (H in I) then 
-        vprint Autotopism, 1 : "process i = ", i;
+        vprint Autotopism, 2 : "\tFilter process %o", i;
         gens := [G!H.j: j in [1..NPCgens (H)]]; 
         Q := ConstructFilter (Q, gens);
         I := Image (Q);
@@ -25,7 +25,7 @@ intrinsic ProduceFilter (G::GrpPC: S := [], CharSpacesFunc:=false) -> [], [], []
    T := [x : x in T];
    return T, I, S;
 end intrinsic;
-
+*/
 __ReduceActionOnVW := function (G)
 	vprint Autotopism, 1 : 
 		"\tSearching for characteristic subgroups by Maglione-Wilson filters.";
@@ -110,19 +110,15 @@ intrinsic AutomorphismGroupByInvariants(
 
  	GV := GL(d,p);
  	GW := GL(e,p);
-	
+
+	if UseFilters then
+		vprint Autotopism, 1 : "Reducing action ....";
+		GW, GV := __ReduceActionOnVW(G);
+	end if;
 	iotaV := hom<GL(d,p)->GL(d+e,p)| x:->DiagonalJoin(x,IdentityMatrix(GF(p),e))>;
 	iotaW := hom<GL(e,p)->GL(d+e,p)| x:->DiagonalJoin(IdentityMatrix(GF(p),d),x)>;
 	U := sub<GL(d+e,p) | [x@iotaW : x in Generators(GW)] cat [x@iotaV: x in Generators(GV)]>;
-
 	WORK := __report( GV, GW );
-
-	if UseFilters then
-		vprint Autotopism, 1 : "Reducing action on W....";
-		GW, GV := __ReduceActionOnVW(G);
-
-		WORK := __report( GV, GW );
-	end if;
 
 	vprint Autotopism, 1 : "Entering pseudo-isometry group....";
 	U,L := PseudoIsometryGroup(T : Supergroup := U, MAX := 2^30 );

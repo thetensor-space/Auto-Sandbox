@@ -81,7 +81,7 @@ end function;
           
           F := SystemOfForms (s);
           vprint Autotopism, 2 : 
-               "partition entered __basic_fingerprinting with", #part, "parts";
+               "\tPartition entered __basic_fingerprinting with", #part, "parts";
           
           npart := [ ];
           for a in [1..#part] do
@@ -101,7 +101,7 @@ end function;
           
           part := npart;
           vprint Autotopism, 2 : 
-               "after basic_fingerprinting it has", #part, "parts";
+               "\tAfter basic_fingerprinting it has", #part, "parts";
      
      end procedure;
      
@@ -111,7 +111,7 @@ end function;
           
           F := SystemOfForms (s);
           vprint Autotopism, 2 : 
-               "   partition entered __advanced_fingerprinting with", #part, "parts";
+               "\tPartition entered __advanced_fingerprinting with", #part, "parts";
           
           // first, a basic fingerprint
           npart := [ ];
@@ -139,7 +139,7 @@ end function;
         
           part := npart;
           vprint Autotopism, 2 : 
-               "   after basic_fingerprinting it has", #part, "parts";
+               "\tAfter basic_fingerprinting it has", #part, "parts";
                 
           // next, refine the partition using the arrangement of subspaces in U 
           Usums := { X + Y : X in Uspaces, Y in Uspaces | X ne Y }; 
@@ -166,7 +166,7 @@ end function;
           
           part := npart;
           vprint Autotopism, 2 : 
-               "   after fingerprinting with (left) subspace arrangement it has", #part, "parts";
+               "\tAfter fingerprinting with (left) subspace arrangement it has", #part, "parts";
                
           // if we act differently on the left and right domain spaces, we repeat for V ...
                 
@@ -236,17 +236,17 @@ intrinsic LabelledProjectiveSpace (
        U := sub < G | [ Transpose (OVERGROUP.i) : i in [1..Ngens (OVERGROUP)] ] >;
   end if;
   
-  vprint Autotopism, 2 : "initially, |U| =", #U;
+  vprint Autotopism, 2 : "\tInitially, |U| has ", Ceiling (Log (2, #U )),"bits.";
   
   // induce U on the points P of PG(W) 
   UP, fP, P := ProjectiveAction (U, 1 : TIMER := TIMER);
   
   tt := Cputime ();
   oP := Orbits (UP);
-  if TIMER then "time to compute UP-orbits:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute UP-orbits:", Cputime (tt); end if;
   
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
-	  vprint Autotopism, 2 : "the initial point partition has", #partP, "part(s)";
+	  vprint Autotopism, 2 : "\tThe initial point partition has", #partP, "part(s)";
 	  
   // carry out fingerprinting to the specified level
   tt := Cputime ();
@@ -257,7 +257,7 @@ intrinsic LabelledProjectiveSpace (
   else
        assert FINGER_LEVEL eq 0;
   end if;
-  if TIMER then "time for level", FINGER_LEVEL, "fingerprinting:", Cputime (tt); end if;	  
+  if TIMER then "\tTime for level", FINGER_LEVEL, "fingerprinting:", Cputime (tt); end if;	  
   
   // replace UP with the stabilizer of the new partition and pull back to GL(W)
   oP := [ { Position (P, x[i]) : i in [1..#x] } : x in partP ];
@@ -265,21 +265,21 @@ intrinsic LabelledProjectiveSpace (
   tt := Cputime ();
   UP := Stabiliser (UP, oP);
   UP := ReduceGenerators (UP);
-  if TIMER then "time to compute stabiliser of point partition:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute stabiliser of point partition:", Cputime (tt); end if;
   
   tt := Cputime ();
   U := UP @@ fP;
-  if TIMER then "time to compute pullback of U:", Cputime (tt); end if;	
+  if TIMER then "\tTime to compute pullback of U:", Cputime (tt); end if;	
 	   
   tt := Cputime ();
   npartP := &cat [ __partition (Q, t, point_label) : Q in partP ];
-  if TIMER then "time to compute labels on points:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute labels on points:", Cputime (tt); end if;
   
             // verify claim made in the developer's note that 
             // this adds nothing new to fingerprinting
             assert npartP eq partP;
   
-  vprint Autotopism, 2 : "now that U stabilizes point partition, |U| =", #U;
+  vprint Autotopism, 2 : "\tNow that U stabilizes point partition, |U| has ", Ceiling (Log (2, #U)),"bits.";
   
   
   // induce U on the lines M of PG(W) and then label L using its labeling function
@@ -287,35 +287,35 @@ intrinsic LabelledProjectiveSpace (
   
   tt := Cputime ();
   oM := Orbits (UM);
-  if TIMER then "time to compute UM-orbits:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute UM-orbits:", Cputime (tt); end if;
   
   partM := [ [ M[i] : i in oM[j] ] : j in [1..#oM] ];
-	  vprint Autotopism, 2 : "the initial line partition has", #partM, "part(s)";
+	  vprint Autotopism, 2 : "\tThe initial line partition has", #partM, "part(s)";
 	  
   tt := Cputime ();
   partM := &cat [ __partition (Q, t, line_label) : Q in partM ];
-  if TIMER then "time to compute labels on lines:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute labels on lines:", Cputime (tt); end if;
   
-      vprint Autotopism, 2 : "after labeling, line partition has", #partM, "part(s)";
+      vprint Autotopism, 2 : "\tAfter labeling, line partition has", #partM, "part(s)";
       
   oM := [ { Position (M, x[i]) : i in [1..#x] } : x in partM ];
   
   tt := Cputime ();
   UM := Stabiliser (UM, oM);
   UM := ReduceGenerators (UM);
-  if TIMER then "time to compute stabiliser of line partition:", Cputime (tt); end if;
+  if TIMER then "\tTime to compute stabiliser of line partition:", Cputime (tt); end if;
   
   tt := Cputime ();
   U := UM @@ fM;
   if TIMER then "time to compute pullback of U:", Cputime (tt); end if;
   
-  vprint Autotopism, 2 : "now that U stabilizes the line partition, |U| =", #U;
+  vprint Autotopism, 2 : "\tNow that U stabilizes the line partition, |U| has (", Ceiling (Log (2, #U)),"bits )";
   
   // induce U on points again, compute orbits, recalculate partP
   UP := U @ fP;
   oP := Orbits (UP);
   partP := [ [ P[i] : i in oP[j] ] : j in [1..#oP] ];
-	  vprint Autotopism, 2 : "the final point partition has", #partP, "part(s)";
+	  vprint Autotopism, 2 : "\tThe final point partition has", #partP, "part(s)";
   
   // convert U back to the correct action
   U := sub < Generic (U) | [ Transpose (U.i) : i in [1..Ngens (U)] ] >;

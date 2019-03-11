@@ -268,7 +268,7 @@ __report := function(U,L, piV,piW)
   vprint Autotopism, 1 : "INDEX:\t\t\t\t",	__THE_INDEX, "(",bits, "bits)";
   
   UV := U @ piV;
-  vprint Autotopism, 1 : "L=", L, "piV=", piV;
+  //vprint Autotopism, 1 : "L=", L, "piV=", piV;
   __THE_V_INDEX := ISA(Type(L), BoolElt) select LMGOrder(UV) else LMGOrder(UV) div LMGOrder(L @ piV );
   bits := Ceiling(Log(2,__THE_V_INDEX));
   d := Degree(UV);
@@ -1008,17 +1008,16 @@ intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
   OVER := GL (e, k);   // this can be refined on input
   UNDER := sub < GL (e, k) | Identity (GL (e, k)) >;   // possibly this can too
   INDEX := LMGOrder (OVER) div LMGOrder (UNDER);
-"INDEX =", INDEX, 
-"   (", Ceiling (Log (2, INDEX)),"bits )";
-"LIMIT =", __EXHAUSTIVE_SEARCH_LIMIT;
+  vprint Autotopism, 1 : "INDEX has ", Ceiling (Log (2, INDEX)),"bits.";
+  vprint Autotopism, 1 : "LIMIT =", __EXHAUSTIVE_SEARCH_LIMIT;
 
   done := false;
   gens := [ ];
   
   // find generators for the principal isotopism group.
   PRIN := PrincipalIsotopismGroup (T);
-"order of principal isotopism group of T:", LMGOrder (PRIN), 
-"   (", Ceiling (Log (2, LMGOrder (PRIN))),"bits )";
+  vprint Autototpism, 1 : "\tOrder of principal isotopism group of T has ", 
+    Ceiling (Log (2, LMGOrder (PRIN))),"bits.";
   
   while (not done) do
   
@@ -1052,7 +1051,7 @@ intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
           end if;
           
       else   // try random process
-"searching at random for group elements that lift to isotopisms";       
+          vprint Autotopism, 1 : "\t Searching at random for group elements that lift to isotopisms.";       
           i := 1;
           stop := false;
           while (i lt __EXHAUSTIVE_SEARCH_LIMIT) and (not stop) do
