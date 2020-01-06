@@ -54,5 +54,5 @@ GENUS2_LABEL := function (m, t)
   F := SystemOfForms (t);
   s := Tensor ([ &+ [ (m.1)[i] * F[i] : i in [1..#F] ], 
                  &+ [ (m.2)[i] * F[i] : i in [1..#F] ] ], 2, 1); 
-return Genus2Signature (s);
+return TGSignature (s);
 end function;

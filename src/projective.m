@@ -143,7 +143,7 @@ end function;
    Genus2Sig := function (m)
       F1 := Matrix (m.1);
       F2 := Matrix (m.2);
-   return Genus2Signature (Tensor ([F1, F2], 2, 1));
+   return TGSignature (Tensor ([F1, F2], 2, 1));
    end function;
 
 
