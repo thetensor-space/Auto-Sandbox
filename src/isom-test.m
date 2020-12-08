@@ -192,13 +192,13 @@ __IsIsometric_ND := function (S, T)
 	 
   /* solve the adjoint algebra problem */
   A := AdjointAlgebra (T); // Call it on T so it can retrieve pre-computed adj.
+"flag 0", forall { i : i in [1..Ngens (A)] | forall { j : j in [1..e] | A.i * TF[j] eq TF[j] * Transpose (A.i @ A`Star)}}; 
 	 
   s := (U * V)^-1;
   if __SANITY_CHECK then
 	assert s in A;
 	assert s eq (s @ A`Star);
 "flag 1", forall { X : X in TF | s * X eq X * Transpose (s) };
-"flag 2", Transpose (s) eq -s;
   end if;
 
   isit, a := InverseNorm (A, s);
@@ -1105,4 +1105,71 @@ return H;
 end intrinsic;
    
 
+// test function; PAB 12/8/2020
+__IsIsometric_PAB := function (System1, System2 : Autos := [ 0 : i in [1..#System1] ]) 
+  
+  e := #System1;   assert e eq #System2;
+  d := Nrows (System1[1];
+  K := BaseRing (Parent (System1[1]));
+  
+  if e*d eq 0 then return true, ZeroMatrix (K,0,0); end if;
+	 
+  /* find U, V of full rank with U * S[i] = T[i] * V^t */
+  space := Adj2 (SF, TF);
+  
+  if Dimension (space) eq 0 then return false, _; end if;
 
+  //  TBD: This part can surely be made deterministic, a la Brooksbank-Luks
+  N := NullSpace (__vector_to_matrix(space.1, d, d));
+  for i in [2..Ngens (space)] do
+	  N := N meet NullSpace (__vector_to_matrix(space.i, d, d));
+	  if Dimension (N) eq 0 then
+	  	break;
+	  end if;
+  end for;
+  if Dimension (N) gt 0 then 
+	  return false, _;
+  end if;
+	
+  LIMIT := 20 * Dimension (space);
+  i := 0;
+  found := false;
+  while (i lt LIMIT) and (not found) do
+		i +:= 1;
+		U, V := __vector_to_matrix(Random (space), d, d);
+		if __SANITY_CHECK then
+	  	   assert forall { i : i in [1..e] | U * SF[i] eq TF[i] * Transpose (V) };
+		end if;
+		if (Rank (U) eq d) and (Rank (V) eq d) then
+	  	   found := true;
+		end if;
+  end while;
+  if (not found) then
+		// This is Monte Carlo!	 Will need to change.
+		vprint Autotopism, 3 : "\t[WARNING] : Monte carlo test of invertible failed.";
+		return false, _;
+  end if;
+	 
+  /* solve the adjoint algebra problem */
+  A := AdjointAlgebra (T); // Call it on T so it can retrieve pre-computed adj.
+"flag 0", forall { i : i in [1..Ngens (A)] | forall { j : j in [1..e] | A.i * TF[j] eq TF[j] * Transpose (A.i @ A`Star)}}; 
+	 
+  s := (U * V)^-1;
+  if __SANITY_CHECK then
+	assert s in A;
+	assert s eq (s @ A`Star);
+"flag 1", forall { X : X in TF | s * X eq X * Transpose (s) };
+  end if;
+
+  isit, a := InverseNorm (A, s);
+  if not isit then return false, _; end if;
+  
+  g := a * U;
+
+  if __SANITY_CHECK then  
+	assert forall { i : i in [1..e] | g * SF[i] * Transpose (g) eq TF[i] };
+  end if;
+  	
+return true, GL (Nrows (g), BaseRing (Parent (g)))!g;
+
+end function;
