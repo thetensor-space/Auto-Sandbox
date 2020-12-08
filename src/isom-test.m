@@ -197,6 +197,8 @@ __IsIsometric_ND := function (S, T)
   if __SANITY_CHECK then
 	assert s in A;
 	assert s eq (s @ A`Star);
+"flag 1", forall { X : X in TF | s * X eq X * Transpose (s) };
+"flag 2", Transpose (s) eq -s;
   end if;
 
   isit, a := InverseNorm (A, s);
