@@ -129,7 +129,6 @@ end function;
 
 
 /*
-
   Given tensors $S$ and $T$ into a common vector space, 
   decides if they are isometric.
   
@@ -140,7 +139,6 @@ end function;
   
   Next, the algorithm solve for $a\in Adj(T)$ with $t^*t=N(a)$.
   Such an $a$ exists if, and only if, $ta$ is an isometry $S->T$.
-  
 */
 __IsIsometric_ND := function (S, T) 
   
@@ -192,13 +190,14 @@ __IsIsometric_ND := function (S, T)
 	 
   /* solve the adjoint algebra problem */
   A := AdjointAlgebra (T); // Call it on T so it can retrieve pre-computed adj.
-"flag 0", forall { i : i in [1..Ngens (A)] | forall { j : j in [1..e] | A.i * TF[j] eq TF[j] * Transpose (A.i @ A`Star)}}; 
+  assert forall { i : i in [1..Ngens (A)] | 
+       forall { j : j in [1..e] | A.i * TF[j] eq TF[j] * Transpose (A.i @ A`Star)}
+                }; 
 	 
   s := (U * V)^-1;
   if __SANITY_CHECK then
 	assert s in A;
 	assert s eq (s @ A`Star);
-"flag 1", forall { X : X in TF | s * X eq X * Transpose (s) };
   end if;
 
   isit, a := InverseNorm (A, s);
