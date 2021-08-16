@@ -56,3 +56,4 @@ GENUS2_LABEL := function (m, t)
                  &+ [ (m.2)[i] * F[i] : i in [1..#F] ] ], 2, 1); 
 return TGSignature (s);
 end function;
+
