@@ -140,7 +140,11 @@ end function;
   Next, the algorithm solve for $a\in Adj(T)$ with $t^*t=N(a)$.
   Such an $a$ exists if, and only if, $ta$ is an isometry $S->T$.
 */
-__IsIsometric_ND := function (S, T) 
+
+intrinsic __IsIsometric_ND (S::TenSpcElt, T::TenSpcElt) -> BoolElt, GrpMatElt
+{}
+
+//__IsIsometric_ND := function (S, T) 
   
   e := Dimension (Codomain (S));
   d := Dimension (Domain (S)[1]);
@@ -211,7 +215,9 @@ __IsIsometric_ND := function (S, T)
   	
 return true, GL (Nrows (g), BaseRing (Parent (g)))!g;
 
-end function;
+//end function;
+
+end intrinsic;
 
 
 
@@ -1017,7 +1023,7 @@ intrinsic AutotopismGroup (T::TenSpcElt) -> GrpMat
   
   // find generators for the principal isotopism group.
   PRIN := PrincipalIsotopismGroup (T);
-  vprint Autototpism, 1 : "\tOrder of principal isotopism group of T has ", 
+  vprint Autotopism, 1 : "\tOrder of principal isotopism group of T has ", 
     Ceiling (Log (2, LMGOrder (PRIN))),"bits.";
   
   while (not done) do
