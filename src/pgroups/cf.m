@@ -9,7 +9,7 @@ import "misc.m": DefiningParameters, SubmoduleToSubspace,
                  SubspaceToSubgroup, OrderGL, BasisCharSubgroup;
 import "parameters.m": MembershipTest, AutRF, NHITS, ProbablyTrivial, SMALL,
          RF, SMALLORBIT, LARGE, MAXORBITSIZE, ORBITLIMIT, MultiplicatorChop;
-import "finger.m": Fingerprint;
+// import "finger.m": Fingerprint;
 import "approximate.m": BirthdayParadox, ApproximateStabiliser;
 import "aut.m": SetupMaps, SmallGeneratingSet, KernelPGL;
 
