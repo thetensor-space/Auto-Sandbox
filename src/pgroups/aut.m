@@ -445,6 +445,11 @@ StartGroup := [])
 
    require IsPrimePower (#G): "Argument must be group of prime-power order";
 
+/* 
+   if assigned G`Automorphisms then
+      "SKIP check and recompute ";
+   end if;
+*/
    if assigned G`Automorphisms then
       return SetupAutomorphismGroup (G`Automorphisms);
    end if;
