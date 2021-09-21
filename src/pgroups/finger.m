@@ -68,7 +68,9 @@ ExamineLevel := function (G, Chars, c, range: Exclusions := [* *])
    for s in [1..#sections] do
       section := sections[s];
       top := section[1]; bottom := section[2];
-      vprint AutomorphismGroup, 2: "Dimension of section is ", length[s];
+      if length[s] gt 1 then 
+         vprint AutomorphismGroup, 2: "Dimension of section is ", length[s];
+      end if;
       B := FactorToSubspace (V, top, bottom);
       T := SubspaceToSubgroup (Q, V, B, c);
       top := SubspaceToSubgroup (Q, V, top, c);
@@ -90,7 +92,7 @@ ExamineLevel := function (G, Chars, c, range: Exclusions := [* *])
          exclusions[#exclusions + 1] := <section[1], section[2], c>;
          vprint AutomorphismGroup:
               "Fingerprint section of dimension ", NPCgens (T),
-           " in level ", c;
+              " in level ", c;
          min, points, E := MyMinimalSubgroups (G, T, LCS[c + 1], phi);
          minG := [sub < G | bottom, m >: m in min];
          parts := PartitionSubgroups (G, minG);
@@ -179,24 +181,25 @@ end function;
 PartitionSpaces := function (Part)
    if #Part eq 0 then return {@ @}; end if;
 
+   if #Part gt 400 then return {@ @}; end if;
+// "Call InternalP...Pairs";
    id, count, spaces := InternalPartitionPairs (Part);
    assert #count eq #spaces;
-   vprint AutomorphismGroup, 2: "Set of pairs ids from Partition is ", Set (id);
+   vprint AutomorphismGroup, 2: "Set of pairs ids from Partition is ", #Set (id);
    vprint AutomorphismGroup, 2:
-        "Set of pairs counts from Partition is ", Set (count);
+        "Set of pairs counts from Partition is ", #Set (count);
 
    new := FurtherRefine (Part, id);
    new join:= FurtherRefine (spaces, count);
 
    if #new gt 0 or #Part gt MAXPARTITION then return new; end if;
 
+// "Call InternalP...Triples";
    id, count, spaces := InternalPartitionTriples (Part);
    vprint AutomorphismGroup, 2:
-        "Set of triples ids from Partition is ", Set (id);
-        "triples ids from Partition is ", (id);
+        "Set of triples ids from Partition is ", #Set (id);
    vprint AutomorphismGroup, 2:
-        "Set of triples counts from Partition is ", Set (count);
-        "triples counts from Partition is ", (count);
+        "Set of triples counts from Partition is ", #Set (count);
    new join:= FurtherRefine (Part, id);
    new join:= FurtherRefine (spaces, count);
 
@@ -260,6 +263,8 @@ end function;
 
 FingerprintSection := function (G, Chars, Order: Range := [],
                                                  Exclusions := [* *])
+// "Input chars are "; Chars:Magma;
+
    vprint AutomorphismGroup:
        "Number of char spaces on entry to Fingerprint is ", #Chars;
 
@@ -298,7 +303,7 @@ FingerprintSection := function (G, Chars, Order: Range := [],
             vprint AutomorphismGroup: "Reduced order by factor", Order div order;
             /* if the remaining subgroup is just a p-group, go home */
             pgroup := #Subgroup[1] eq 0;
-            "**** SHOULD CALL FILTER HERE ", #Chars;
+            // "**** SHOULD CALL FILTER HERE ", #Chars;
             if order lt ORDERLIMIT or pgroup then
                return true, Chars, Subgroup, exclusions;
             end if;
@@ -328,7 +333,7 @@ FingerprintSection := function (G, Chars, Order: Range := [],
                vprint AutomorphismGroup, 2:
                     "Reduced order by factor", Order div order;
                pgroup := #Subgroup[1] eq 0;
-               "**** after PartitionSpaces SHOULD CALL FILTER HERE ", #Chars;
+               // "**** after PartitionSpaces SHOULD CALL FILTER HERE ", #Chars;
                if order lt ORDERLIMIT or pgroup then
                   return true, Chars, Subgroup, exclusions;
                end if;
@@ -350,8 +355,11 @@ FingerprintSection := function (G, Chars, Order: Range := [],
    return false, Chars, Subgroup, exclusions;
 end function;
 
-/* fingerprint characteristic sections of G */
-Fingerprint := function (G, Chars, Order)
+// fingerprint characteristic sections of G 
+// Fingerprint := function (G, Chars, Order)
+
+intrinsic Fingerprint (G:: GrpPC, Chars, Order:: RngIntElt) -> BoolElt, [], []
+{fingerprint characteristic sections of G }
    /* remember entry order */
    Initial := Order; exclusions := [* *];
 
@@ -379,4 +387,4 @@ Fingerprint := function (G, Chars, Order)
       vprint AutomorphismGroup: "Order of p-group is ", p^#best[2];
       return true, Chars, best;
    end if;
-end function;
+end intrinsic;
