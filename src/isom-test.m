@@ -827,10 +827,14 @@ intrinsic IsIsometric (T1::TenSpcElt, T2::TenSpcElt) -> BoolElt, GrpMatElt
   
   e := Degree (Parent (f01)) - Degree (Parent (g0));
   if e gt 0 then
-      g0 := DiagonalJoin (g0, Identity (GL (e, BaseRing (T1))));
+      if Nrows (g0) eq 0 then
+         g0 := Identity (GL (e, BaseRing (T1)));
+      else
+         g0 := DiagonalJoin (g0, Identity (GL (e, BaseRing (T1))));
+      end if;
       g0 := GL (Degree (Parent (f01)), BaseRing (T1))!g0;
   end if;
-  
+
   g := f02^-1 * g0 * f01;
   assert IsIsometry (T1, T2, g);
 		
