@@ -1,0 +1,36 @@
+/*
+* created by PAB on 1/17/2022 to test adaptation of 
+* StabiliserOfSpaces to a transporter version.
+*/
+
+RandomSubspace := function (K, d, e)
+   U := sub < VectorSpace (K, d) | 0 >;
+   while Dimension (U) lt e do 
+      U +:= sub < VectorSpace (K, d) | Random (VectorSpace (K, d)) >;
+   end while;
+return U;
+end function;
+
+RandomTranslation := function (S)
+   K := BaseRing (S[1]);
+   d := Degree (S[1]);
+   g := Matrix (Random (GL (d, K)));
+   T := [ S[i] * g : i in [1..#S] ];
+assert forall { i : i in [1..#S] | S[i] * g eq T[i] };
+return T, g;
+end function;
+
+
+// how to use transporter function ... needs testing.
+K := GF(7);
+d := 10;
+dims := [ Random ([3..d-3]) : i in [1..3] ];
+
+S := [ RandomSubspace (K, d, e) : e in dims ];
+T, g := RandomTranslation (S);
+flag, H, h := TransporterOfSpaces (S, T);
+assert flag;
+assert forall {i : i in [1..#S] | S[i] * h eq T[i] };
+
+
+

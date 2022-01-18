@@ -422,7 +422,7 @@ UnitsGenerators := function (A, solution, dims, isom, CF:
    return pPart, blockPart, size, factors;
 end function;
 
-/* system of linear equations specified by spaces U, namely U * X = U */
+/* system of linear equations specified by spaces U, namely U * X < U */
 EquationsForStabiliser := function (U)
    P := Parent (U);
    d := Ncols (P.1);
@@ -699,3 +699,80 @@ intrinsic JacobsonRadicalOverFiniteField (A:: AlgMat) -> AlgMat
 
    return ideal<A | P>;
 end intrinsic;
+
+/* 
+* --------------
+* The code below was added by PAB on 1/17/2022.
+* 
+* The purpose is to extend SubspaceStabiliser 
+* functionality to transporter problems.
+* --------------
+*/
+
+/*
+* This is a replacement for and repackagin of
+* the "EquationsForStabiliser" function above.
+*/
+SubspaceTransporter := function (U, V)
+   K := BaseRing (U);
+   UM := BasisMatrix (U);
+   VM := BasisMatrix (V);
+   d := Ncols (UM);
+   e := Nrows (UM);
+   mat := [ ];
+   for i in [1..e] do
+      for col in [1..d] do 
+         row := [ 0 : x in [1..d^2 + e^2] ];
+         for j in [1..d] do
+            row[(j-1)*d + col] := UM[i][j];
+         end for;
+         for k in [1..e] do
+            row[d^2+(i-1)*e+k] := -VM[k][col];
+         end for;
+         Append (~mat, row);
+      end for;
+   end for;
+   mat := Matrix(mat);
+   N := NullspaceMatrix (Transpose (mat));
+   gens := [ Matrix (K, d, d, [ N[i][j] : j in [1..d^2] ]) : 
+                    i in [1..Nrows (N)] ];
+   MS := KMatrixSpace (K, d, d);
+   tran := sub < MS | [ MS!(gens[i]) : i in [1..#gens] ] >;
+assert forall { t : t in Basis (tran) | U * t subset V };
+return tran;
+end function;
+
+MyTransporterOfSpaces := function (S, T : LIMIT := 1000)
+   tran := &meet [ SubspaceTransporter (S[i], T[i]) : i in [1..#S] ];
+   // randomised approach for now; eventually deterministic a la Brooksbank-Luks
+   found := false;
+   count := 0;
+   while (not found) and (count lt LIMIT) do
+      count +:= 1;
+      t := Matrix (Random (tran));
+      if Rank (t) eq Nrows (t) then 
+         found := true;
+      end if;
+   end while;
+   if found then 
+      return true, t;
+   else 
+      return false, _;
+   end if;
+end function;
+
+intrinsic TransporterOfSpaces (Spaces1::SeqEnum, Spaces2:: SeqEnum) -> BoolElt, GrpMat, GrpMatElt
+{ Decide if there is an invertible matrix transporting one sequence of spaces with another. 
+  If there is, return the stabiliser as a coset: group stabilising Spaces1 and invertible transporting matrix. }
+
+   flag, t := MyTransporterOfSpaces (Spaces1, Spaces2);
+   if not flag then
+      return false, _, _;
+   end if;
+
+   S := StabiliserOfSpaces (Spaces1);
+
+return true, S, t;
+end intrinsic;
+
+
