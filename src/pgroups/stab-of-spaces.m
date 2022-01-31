@@ -722,7 +722,7 @@ SubspaceTransporter := function (U, V)
    mat := [ ];
    for i in [1..e] do
       for col in [1..d] do 
-         row := [ 0 : x in [1..d^2 + e^2] ];
+         row := [ K!0 : x in [1..d^2 + e^2] ];
          for j in [1..d] do
             row[(j-1)*d + col] := UM[i][j];
          end for;
@@ -771,6 +771,7 @@ intrinsic TransporterOfSpaces (Spaces1::SeqEnum, Spaces2:: SeqEnum) -> BoolElt, 
    end if;
 
    S := StabiliserOfSpaces (Spaces1);
+   t := GL (Degree (Generic (Spaces1[1])), BaseRing (Generic (Spaces1[1])))!t;
 
 return true, S, t;
 end intrinsic;
