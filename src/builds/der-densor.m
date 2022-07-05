@@ -99,7 +99,7 @@ __der_densor := function(s)
 
   // Construct the densor subspace
   printf "Computing the densor subspace.\n";
-  densor := UniversalDensorSubspace(t); // MAIN BOTTLENECK
+  densor := DerivationClosure(Parent(t), t); // MAIN BOTTLENECK
   printf "\tdim(densor) = %o\n", Dimension(densor);
 
 
