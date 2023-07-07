@@ -1,10 +1,10 @@
 // testing the new graph function
 
 // load the labelling functions
-load "~/MagmaGit/Auto-Sandbox/src/bimap_labels.m";
+load "~/Documents/GitHub/MAGMA/Auto-Sandbox/src/bimap_labels.m";
 
 // a test with a group list provided by JM 
-load "~/MagmaGit/Auto-Sandbox/examples/sesGroups.m";
+load "~/Documents/GitHub/MAGMA/Auto-Sandbox/examples/sesGroups.m";
 
 // given a p-group H, returns the orders of U computed with graph method
 // using Genus2 and Slope labels, respectively.
@@ -55,9 +55,9 @@ return LIFT eq ULIFT;
 end function;  
 
 // Brahana tests
-load "examples/brahana/programs.m";
-load "examples/brahana/present.m";
-load "examples/dual.m";
+load "~/Documents/GitHub/MAGMA/Auto-Sandbox/examples/brahana/programs.m";
+load "~/Documents/GitHub/MAGMA/Auto-Sandbox/examples/brahana/present.m";
+load "~/Documents/GitHub/MAGMA/Auto-Sandbox/examples/dual.m";
 p := 5;
 B := BrahanaList (p);
 __BrahanaTest := function (i : LAB := SLOPE_LABEL)
